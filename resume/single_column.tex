@@ -1,0 +1,277 @@
+%%%%%%%%%%%%%%%%%
+% This is an sample CV template created using altacv.cls
+% (v1.7.2, 28 Aug 2024) written by LianTze Lim (liantze@gmail.com), based on the
+% CV created by BusinessInsider at http://www.businessinsider.my/a-sample-resume-for-marissa-mayer-2016-7/?r=US&IR=T
+%
+%% It may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License, either version 1.3
+%% of this license or (at your option) any later version.
+%% The latest version of this license is in
+%%    http://www.latex-project.org/lppl.txt
+%% and version 1.3 or later is part of all distributions of LaTeX
+%% version 2003/12/01 or later.
+%%%%%%%%%%%%%%%%
+
+%% Use the "normalphoto" option if you want a normal photo instead of cropped to a circle
+% \documentclass[10pt,a4paper,normalphoto]{altacv}
+
+\documentclass[10pt,a4paper,ragged2e,withhyper]{altacv}
+%% AltaCV uses the fontawesome5 and simpleicons packages.
+%% See http://texdoc.net/pkg/fontawesome5 and http://texdoc.net/pkg/simpleicons for full list of symbols.
+
+% Change the page layout if you need to
+\geometry{left=1.25cm,right=1.25cm,top=1.25cm,bottom=1.25cm,columnsep=1cm}
+% The paracol package lets you typeset columns of text in parallel
+\usepackage{paracol}
+\usepackage{multicol}
+
+\input{info}
+% Change the font if you want to, depending on whether
+% you're using pdflatex or xelatex/lualatex
+% WHEN COMPILING WITH XELATEX PLEASE USE
+% xelatex -shell-escape -output-driver="xdvipdfmx -z 0" mmayer.tex
+\iftutex
+% \setmainfont{Lato}
+    % \setmainfont{Fira Sans}
+    \setmainfont{IBM Plex Sans}
+    % \setmainfont{Source Sans Pro}
+\else
+  % If using pdflatex:
+  \usepackage[default]{mathpazo}
+\fi
+
+\definecolor{deepcharcoal}{HTML}{1A1A1A}
+\definecolor{charcoal}{HTML}{2E2E2E}
+\definecolor{softblack}{HTML}{333333}
+\definecolor{mediumgrey}{HTML}{777777} 
+\definecolor{softgrey}{HTML}{B0B0B0} 
+
+\definecolor{VividPurple}{HTML}{3E0097}
+\definecolor{lavender}{HTML}{6A5ACD}
+\definecolor{softindigo}{HTML}{3F51B5}
+\definecolor{slateblue}{HTML}{6478A0}
+\definecolor{teal}{HTML}{008080} 
+\definecolor{softteal}{HTML}{4DB6AC} 
+\definecolor{forestgreen}{HTML}{2E7D32}
+\definecolor{burntumber}{HTML}{6E2C00}
+\definecolor{redcurrant}{HTML}{A03D41}
+
+\colorlet{name}{black}
+\colorlet{tagline}{mediumgrey}
+\colorlet{heading}{charcoal}
+\colorlet{headingrule}{softgrey}
+% \colorlet{subheading}{PastelRed}
+\colorlet{emphasis}{softblack}
+\colorlet{accent}{mediumgrey}
+\colorlet{body}{softblack}
+
+% Change some fonts, if necessary
+% \renewcommand{\namefont}{\Huge\rmfamily\bfseries}
+% \renewcommand{\personalinfofont}{\footnotesize}
+% \renewcommand{\cvsectionfont}{\LARGE\rmfamily\bfseries}
+% \renewcommand{\cvsubsectionfont}{\large\bfseries}
+
+% Change the bullets for itemize and rating marker
+% for \cvskill if you want to
+\renewcommand{\cvItemMarker}{{\small\textbullet}}
+\renewcommand{\cvRatingMarker}{\faCircle}
+% ...and the markers for the date/location for \cvevent
+% \renewcommand{\cvDateMarker}{\faCalendar*[regular]}
+% \renewcommand{\cvLocationMarker}{\faMapMarker*}
+
+
+% If your CV/résumé is in a language other than English,
+% then you probably want to change these so that when you
+% copy-paste from the PDF or run pdftotext, the location
+% and date marker icons for \cvevent will paste as correct
+% translations. For example Spanish:
+% \renewcommand{\locationname}{Ubicación}
+% \renewcommand{\datename}{Fecha}
+
+
+%% Use (and optionally edit if necessary) this .tex if you
+%% want to use an author-year reference style like APA(6)
+%% for your publication list
+% \input{pubs-authoryear.tex}
+
+%% Use (and optionally edit if necessary) this .tex if you
+%% want an originally numerical reference style like IEEE
+%% for your publication list
+\input{pubs-num.tex}
+
+%% sample.bib contains your publications
+\addbibresource{sample.bib}
+
+\begin{document}
+
+\newdimen\origiwspc%
+\newdimen\origiwstr%
+\origiwspc=\fontdimen2\font% original inter word space
+\origiwstr=\fontdimen3\font% original inter word stretch
+
+\name{\myname}
+\tagline{\mytagline}
+\personalinfo{%
+  % Not all of these are required!
+  % You can add your own with \printinfo{symbol}{detail}
+  \phone{\myphone}
+  \email{\myemail}
+  \website{\mywebsite}
+  % \location{\mylocation}
+  \linkedin{\mylinkedin}
+  \github{\mylinkedin} % I'm just making this up though.
+%   \orcid{0000-0000-0000-0000} % Obviously making this up too.
+  %% You can add your own arbitrary detail with
+  %% \printinfo{symbol}{detail}[optional hyperlink prefix]
+  % \printinfo{\faPaw}{Hey ho!}
+  %% Or you can declare your own field with
+  %% \NewInfoFiled{fieldname}{symbol}[optional hyperlink prefix] and use it:
+  % \NewInfoField{gitlab}{\faGitlab}[https://gitlab.com/]
+  % \gitlab{your_id}
+	%%
+  %% For services and platforms like Mastodon where there isn't a
+  %% straightforward relation between the user ID/nickname and the hyperlink,
+  %% you can use \printinfo directly e.g.
+  % \printinfo{\faMastodon}{@username@instace}[https://instance.url/@username]
+  %% But if you absolutely want to create new dedicated info fields for
+  %% such platforms, then use \NewInfoField* with a star:
+  % \NewInfoField*{mastodon}{\faMastodon}
+  %% then you can use \mastodon, with TWO arguments where the 2nd argument is
+  %% the full hyperlink.
+  % \mastodon{@username@instance}{https://instance.url/@username}
+}
+
+\makecvheader
+
+%% Depending on your tastes, you may want to make fonts of itemize environments slightly smaller
+\AtBeginEnvironment{itemize}{\small}
+
+%% Set the left/right column width ratio to 6:4.
+% \columnratio{0.6}
+
+% Start a 2-column paracol. Both the left and right columns will automatically
+% break across pages if things get too long.
+% \begin{paracol}{2}
+\RaggedRight
+
+\vspace{2mm}
+\cvsection{Skills}
+\LaTeXraggedright
+% \fontdimen2\font=\origiwspc% (original) inter word space
+% \fontdimen3\font=0.1em% inter word stretch
+\fontsize{9}{15}\selectfont%
+\vspace{-2mm}
+\hyphenchar\font=-1
+\sloppy
+% Don't overuse these \cvtag boxes — they're just eye-candies and not essential. If something doesn't fit on a single line, it probably works better as part of an itemized list (probably inlined itemized list), or just as a comma-separated list of strengths.
+
+% The `ragged2e` document class option might cause automatic linebreaks between \cvtag to fail.
+% Either remove the ragged2e option; or 
+% add \LaTeXraggedright in the paragraph for these \cvtag
+{
+\begin{paracol}{2}
+\cvtagsingle{Languages}\newline
+\mylangs
+% \vspace{1mm}
+
+% \vspace{-2mm}
+
+\switchcolumn
+% \divider
+
+\cvtagsingle{Technologies}\newline
+\myskills
+\end{paracol}
+}
+
+\vspace{-1mm}
+\cvsection{Experience}
+% \hfill \cvtag{Industry}
+\cveventonecolumn{\titlegsr}{\workgsr}{\timegsr}{\placegsr}
+\detailgsr
+\divider
+
+\cveventonecolumn{\titledremio}{\workdremio}{\timedremio}{\placedremio}
+\detaildremio 
+\divider
+
+\cveventonecolumn{\titlemicrosoft}{\workmicrosoft}{\timemicrosoft}{\placemicrosoft}
+\detailmicrosoft 
+\divider
+
+\cveventonecolumn{\titleinternmicrosoft}{\workinternmicrosoft}{\timeinternmicrosoft}{\placeinternmicrosoft}
+\detailinternmicrosoft 
+\divider
+
+\medskip
+
+\hfill \cvtag{Academia}
+
+% \vspace{-5mm}\cvevent{\titledrexel}{\workdrexel}{\timedrexel}{\placedrexel}
+% \detaildrexel
+% \divider
+\vspace{-5mm}
+\cveventonecolumn{\titleta}{\workta}{\timeta}{\placeta}
+\detailta
+
+% \divider
+
+% \printbibliography[heading=pubtype,title={\printinfo{\faFile*[regular]}{Journal Articles}}, type=article]
+
+% \divider
+
+% \printbibliography[heading=pubtype,title={\printinfo{\faUsers}{Conference Proceedings}},type=inproceedings]
+
+%% Switch to the right column. This will now automatically move to the second
+%% page if the content is too long.
+% \switchcolumn
+
+
+
+% \vspace{2mm}
+\cvsection{Education}
+\normalsize
+
+\cvevent{\titlemscs}{\workmscs}{\timemscs%
+    \hspace{1cm}{\cvLocationMarker~\placemscs}}{}%
+
+\divider
+
+\cvevent{\titlephd}{\workphd}{\timephd%
+    \hspace{1cm}{\cvLocationMarker~\placephd}}{}%
+\detailphd
+
+\divider
+
+\cvevent{\titlebtech}{\workbtech}{\timebtech\hspace{1cm}{\cvLocationMarker~\placebtech}}{}%
+
+\bigskip
+
+\cvsection{Publications}
+\medskip
+%% Specify your last name(s) and first name(s) as given in the .bib to automatically bold your own name in the publications list.
+%% One caveat: You need to write \bibnamedelima where there's a space in your name for this to work properly; or write \bibnamedelimi if you use initials in the .bib
+\mynames{Rao\bibnamedelima Sriram,
+  Rao\bibnamedelima Sriram,
+  Rao/Sriram,
+  Rao\bibnamedelimi S.}
+%% You can specify multiple names, especially if you have changed your name or if you need to highlight multiple authors.
+%% MAKE SURE THERE IS NO SPACE AFTER THE FINAL NAME IN YOUR \mynames LIST
+\nocite{*}
+
+\setstretch{1.1}
+\printbibliography[heading=none]
+% \cvsection{References}
+
+% % \cvref{name}{email}{mailing address}
+% \cvref{Prof.\ Alpha Beta}{Institute}{a.beta@university.edu}
+% {Address Line 1\\Address line 2}
+
+% \divider
+
+% \cvref{Prof.\ Gamma Delta}{Institute}{g.delta@university.edu}
+% {Address Line 1\\Address line 2}
+
+% \end{paracol}
+
+\end{document}

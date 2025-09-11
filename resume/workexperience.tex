@@ -1,0 +1,118 @@
+\newcommand{\makework}[6]{
+    \expandafter\def\csname work#1\endcsname{#2}
+    \expandafter\def\csname title#1\endcsname{#3}
+    \expandafter\def\csname time#1\endcsname{#4}
+    \expandafter\def\csname place#1\endcsname{#5}
+    \expandafter\def\csname detail#1\endcsname{#6}
+}
+
+\makework{dremio}
+    {Dremio}
+    {Software Engineer - PhD Intern}
+    {Jun 2022 - Sep 2022}
+    {Remote, CA}
+    {
+    \begin{itemize}
+        \item Devised a proof-of-concept (POC) to progressively improve query response in data lakes. Familiarized with \textbf{Apache Calcite} and \textbf{Iceberg}.
+        
+        \item Improved row-count estimation in \textbf{query planning/optimisation} via accurate statistics observed in prior executions. 
+        (LEO, \href{https://www.vldb.org/conf/2001/P019.pdf}{Markl, VLDB 2001}).%
+    \end{itemize}
+    }
+
+\makework{microsoft}
+    {Microsoft}
+    {Software Engineer 2}
+    {Jun 2016 - Sep 2020}
+    {Bengaluru, India}
+    {
+    \begin{itemize}
+        \item Rebuilt workflow manager used for Extract-Transform-Load (\textbf{ETL}) in 100+ pipelines, reducing time-to-deploy from 1h to < 5s. 
+        \item Piloted \textbf{Spark} Streaming POC pipeline to compute the statistical significance of A/B tests 3x faster than existing batched method.
+        \item Refactored cache config. system in API hosted on \textbf{Azure} using Aspect-Oriented Programming. Decreased config. code 5x, codebase size 300 lines. 
+        \item Contributed to teammates' success with detailed input on 40+ design reviews, 100+ \textbf{code reviews}, and live issues on call.
+    \end{itemize}
+    }
+
+\makework{internmicrosoft}
+    {Microsoft}
+    {Summer Intern}
+    {May 2015 - Jun 2015}
+    {Bengaluru, India}
+    {
+    \begin{itemize}
+        \item Analyzed insert \& response times of 3 data stores under stress loads.
+        (Azure Data Explorer/\textbf{Kusto}, \textbf{MongoDB}, \textbf{column-store}.)
+
+        \item Concluded Kusto suited the log analysis use-case (response < 5s), column-store the aggregate-based queries (response < 1s). 
+
+        \item Enabled migration from analytical (\textbf{OLAP}) cubes (instant response) to column-store (response < 1s). Cut ETL time from 10 days to 1 hour. 
+    \end{itemize}
+    }
+
+\makework{gsr}
+    {University of California, Irvine}
+    {Graduate Student Researcher}
+    {Sep 2020 - Sep 2024}
+    {Irvine, CA}
+    {
+    \begin{itemize}
+        \item Designed database (DB) plugin that balances latency \& costs,
+        allocating \textbf{query-processing} resources to ongoing \& \textbf{ML}-forecast loads.
+    
+        \item Developed framework for implicit  \textbf{simulator} invocation by DB. 
+        Showed ease of analysis by integrating \href{https://www.ready.noaa.gov/HYSPLIT.php}{HYSPLIT} into PostgreSQL. 
+        
+        \item Created a \textbf{pipeline execution} system for workflows defined as directed acyclic graphs of tasks. (On \href{https://github.com/sriram-rao/rush}{GitHub} as sample.) 
+    \end{itemize} 
+     } 
+
+\makework{ta}
+    {University of California, Irvine}
+    {Teaching Assistant}
+    {Sep 2020 - Dec 2024}
+    {Irvine, CA}
+    {
+    \begin{itemize}
+        \item Rated 4/5 in anonymous feedback from students, with appreciation for database expertise and \textbf{straightforward explanation}. 
+    
+        \item Collaborated with professors \& TAs on lecture slides, questions, assignments, discussion hours in courses with 200+ students. 
+ 
+    \end{itemize} 
+     } 
+
+\makework{drexel}
+    {Drexel University}
+    {Volunteer Intern}
+    {May 2025 - Current}
+    {Remote, CA}
+    {
+    \begin{itemize}
+        \item Building an \textbf{iOS app} to intuitively record and export a DBT mood journal. 
+    \end{itemize}
+    }
+
+\makework{mscs}
+    {University of California, Irvine}
+    {MS in Computer Science}
+    {Sep 2020 - Mar 2025}
+    {Irvine, CA}
+    {}
+
+\makework{phd}
+    {University of California, Irvine}
+    {Graduate Work in the PhD Program}
+    {Sep 2020 - Sep 2024}
+    {Irvine, CA}
+    {
+    \begin{itemize}
+        \item Advised by Prof. Sharad Mehrotra in data management: workload-aware pre-computation.%
+    \end{itemize}
+    }
+
+\makework{btech}
+    {National Institute of Technology, Karnataka}
+    {B. Tech. in Computer Engineering}
+    {Jul 2012 - Mar 2016}
+    {Surathkal, India}
+    {}

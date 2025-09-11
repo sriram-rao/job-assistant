@@ -1,0 +1,84 @@
+\documentclass[11pt, a4paper, roman]{letter}
+
+\input{info}
+
+\usepackage[top = 15mm, bottom = 30mm, left=15mm, right=15mm]{geometry} %determines page margins / document formatting
+\usepackage[T1]{fontenc}  % We are using pdfLaTeX,
+\usepackage[utf8]{inputenc} %allows direct input of accented characters
+\usepackage{ragged2e} %allows for right aligned / left aligned text instead of all justified
+
+\usepackage[UKenglish]{babel} %sets hypenation / spelling etc
+\usepackage[stretch = 25, shrink = 25]{microtype}  %for better formatting of words in a line / sentence
+
+
+\usepackage{graphicx} %Required for inserting images
+\usepackage{fontawesome} %for nice icons
+
+\usepackage{fancyhdr} %to create header and footer
+
+\usepackage{enumitem} % To redefine spacing in lists
+
+\usepackage{xcolor} %To add colour to the document
+\definecolor{cvteal}{HTML}{008080} %Change this to be any hexcode
+\definecolor{cvblue}{HTML}{304263} %Change this to be any hexcode
+\usepackage[colorlinks = true, urlcolor = black, linkcolor = white]{hyperref}
+
+\begin{document}
+
+\pagestyle{empty}
+\raggedbottom
+
+\begin{minipage}[t]{0.5\textwidth}
+    \vspace*{\fill}
+    \textsc{{\Huge \myname}} %Name & Suffix if appropriate
+    \vspace*{\fill}
+\end{minipage}\hfill
+%
+\begin{minipage}[t]{0.5\textwidth}
+    \setlength{\baselineskip}{15pt}
+    \RaggedLeft 
+    \href{tel:\phone}{\phone} ~~ \faMobile{}\\
+    \mylocation ~~ \faHome{}\\ 
+    \href{mailto:\myemail}{\myemail} ~~ \faEnvelope{}\\ 
+    \href{https://linkedin.com/in/\mylinkedin}{linkedin.com/in/\mylinkedin} ~~ \faLinkedinSquare{}
+\end{minipage}
+
+{\color{cvteal} \rule{\linewidth}{1mm}}
+
+\begin{minipage}[t]{\textwidth}
+\begin{letter} {
+    \recipient\\
+    \recipienttitle\\
+    \fullcompany\\
+    \city, \state%
+    % \\\country
+} %recipients address
+%
+\setlength{\parskip}{5pt} %set inter-parapgraph distance
+\setlength{\baselineskip}{15pt} %set inter-line distance
+\opening{\greeting~\recipientfirstname,}
+
+\begin{center} {\textbf{Position:} \underline{\mytitle}} \end{center}
+
+\setlength{\parskip}{20pt}
+
+\input{body}
+
+\end{letter}
+\end{minipage}
+
+\vspace*{\fill}
+
+{
+\setlength{\parskip}{10pt}
+\setlength{\parindent}{10pt}
+\setlength{\baselineskip}{15pt}
+}
+
+\closer,\\
+\textbf{\myname}
+
+\vspace*{\fill}
+
+{\color{cvteal} \rule{\linewidth}{1mm}}
+\end{document}

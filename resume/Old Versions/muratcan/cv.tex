@@ -1,0 +1,166 @@
+\documentclass[10pt,a4paper,ragged2e,withhyper]{muratcan_cv}
+
+\usepackage{geometry}
+ \geometry{
+ a4paper,
+ total={170mm,257mm},
+ left=20mm,
+ right=20mm,
+ top=15mm,
+ bottom=15mm
+ }
+
+\usepackage[backend=biber,style=ieee,sorting=ydnt,defernumbers=true]{biblatex}
+%% For removing numbering entirely when using a numeric style
+\renewcommand{\bibfont}{\small} 
+\setlength{\bibhang}{1.25em}
+\DeclareFieldFormat{labelnumberwidth}{\makebox[\bibhang][l]{\itemmarker}}
+\setlength{\biblabelsep}{0pt}
+\defbibheading{pubtype}{\cvsubsection{#1}}
+\renewcommand{\bibsetup}{\vspace*{-\baselineskip}}
+\AtEveryBibitem{%
+  \iffieldundef{doi}{}{\clearfield{url}}%
+}
+
+\newenvironment{bulletedbib}
+  {\begin{itemize}[leftmargin=*, label=•, itemsep=0.5em]
+     \renewcommand*{\labelitemi}{}%
+     \let\olditem\item%
+     \renewcommand*{\item}[1][]{\olditem ##1\printtext[title]{\printfield{title}}}%
+  }
+  {\end{itemize}}
+
+\definecolor{OliveGreen}{HTML}{556B2F}
+\definecolor{Charcoal}{HTML}{555555}
+\setname{Sriram Rao}{}
+\setaddress{Irvine, CA, USA}
+\setmobile{+1 (949) 560-3250}
+\setmail{reach@sriramrao.com}
+\setlinkedinaccount{linkedin.com/in/sriram-rao} 
+\setgithubaccount{github.com/sriram-rao} 
+\setthemecolor{MidnightBlue}
+\setthemesubcolor{Charcoal}
+\setlist{nosep}
+\input{info}
+\newcommand{\experiencespace}{\vspace{2mm}} 
+%% sample.bib contains your publications
+\addbibresource{sample.bib}
+
+\begin{document}
+
+%Create header
+\headerview
+\vspace{1.4ex} % white space
+%
+
+\begin{small}
+\noindent A skilled software engineer specializing in data management and big data systems. Proven track record in developing efficient, scalable solutions and collaborating across teams to drive software innovation. 
+\smallskip 
+\end{small} 
+
+\section{Skills}
+    \newcommand{\skillone}{\createskill{Languages}{Python \cpshalf C$\#$ \cpshalf Java \cpshalf SQL \cpshalf C$++$ \cpshalf C \cpshalf HTML, CSS \cpshalf JavaScript (Novice) \cpshalf Ruby (Novice)}}
+    %
+    \newcommand{\skilltwo}{\createskill{Technologies}{Big Data \cpshalf Databases \cpshalf Distributed Systems \cpshalf Storage Formats \cpshalf NoSQL \cpshalf Spark \cpshalf .NET }}
+    %
+    \newcommand{\skilltwoA}{\createskill{}{Query Processing \cpshalf Docker \cpshalf Cloud Services (Azure) \cpshalf Distributed Systems \cpshalf Flask (Python) }}
+    %
+    \newcommand{\skilltwoB}{\createskill{}{Apache Calcite \cpshalf Apache Iceberg \cpshalf Spring (Java) }}
+    %
+    % \newcommand{\skill2_1}{\createskill{Test}{}}
+    %
+    \hspace{-7mm}
+    \vspace{-7mm}
+    \createskills{\skillone} 
+    
+    \hspace{-17mm}
+    \createskills{\skilltwo, \skilltwoA, \skilltwoB}%
+    % \bigskip % reduces whitespace!
+    %
+% 
+
+\vspace{-9mm}
+\section{Experience}
+    %
+    \vspace{-2mm}
+    \subsection{Industry}
+     %
+    \datedexperience{\workdremio}{\timedremio} 
+    \explanation{\titledremio}{\placedremio} 
+    \explanationdetail{\detaildremio}
+     %
+    \datedexperience{\workmicrosoft}{\timemicrosoft} 
+    \explanation{\titlemicrosoft}{\placemicrosoft} 
+    \explanationdetail{\detailmicrosoft} 
+     %
+    \datedexperience{\workinternmicrosoft}{\timeinternmicrosoft} 
+    \explanation{\titleinternmicrosoft}{\placeinternmicrosoft} 
+    \explanationdetail{\detailinternmicrosoft}
+    %
+    \vspace{-3mm}
+    \subsection{Academia}
+    %
+    \datedexperience{\workgsr}{\timegsr} 
+    \explanation{\titlegsr}{\placegsr} 
+    \explanationdetail{\detailgsr} 
+    %
+    \datedexperience{\workta}{\timeta} 
+    \explanation{\titleta}{\placeta} 
+    \explanationdetail{\detailta} 
+%
+\section{Publications}
+\nocite{*}
+% \setstretch{1.1}
+\bigskip
+
+\printbibliography[heading=none]
+
+\smallskip 
+%
+
+\section{Education} 
+    \datedexperience{MS in Computer Science (Data Management)}{Sep 2020 - Mar 2025}
+    \explanation{University of California, Irvine}{ Irvine, CA} 
+    \\
+    % 
+    \datedexperience{\hspace{-0.05cm}PhD in Data Management (Computer Science)}{Sep 2020 - Sep 2024}
+    \explanation{University of California, Irvine - Incomplete}{ Irvine, CA} 
+    \explanationdetail{ 
+        \smallskip 
+        % \coloredbullet\ %
+        \hspace{0.5cm} %
+        PhD candidate advised by Prof. Sharad Mehrotra on workload-aware pre-computation.
+        \bigskip
+    }
+    % \explanation{}{} 
+    %
+    \datedexperience{Bachelor of Technology in Computer Engineering}{Jul 2012 - May 2016}
+    \explanation{National Institute of Technology, Karnataka}{Surathkal, India}
+%
+
+% \section{References}
+% \explanation{Prof. Sharad Mehrotra (sharad@ics.uci.edu)}{}
+%     \explanationdetail{
+%     \smallskip
+%      \coloredbullet\ % 
+%      Distinguished Professor, UC Irvine.
+
+%      \smallskip
+%      \coloredbullet\ 
+%         PhD advisor at UC, Irvine. \textit{September 2020 - Present
+%     }
+%     }
+
+% \explanation{Lohith Shesharam (lohith.cs@gmail.com)}{}
+%     \explanationdetail{
+%     \smallskip
+%      \coloredbullet\ % 
+%      Principal Software Engineering Manager, Microsoft Redmond.  
+     
+%      \smallskip
+%      \coloredbullet\ % 
+%     Manager while at Microsoft IDC, Bangalore (India). 
+%         \textit{Jun 2016 - Sep 2019}
+%     }
+
+\end{document}

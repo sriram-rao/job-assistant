@@ -1,0 +1,78 @@
+% Project:  TeX Cover Letter Template
+% Author:   Sid Lacy
+
+% EDIT info.tex, body.tex
+
+\documentclass[12pt]{letter}
+% \usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc} 
+\usepackage[empty]{fullpage}
+\usepackage[hidelinks]{hyperref}
+\usepackage{graphicx}
+\usepackage{fontawesome5}
+\usepackage{eso-pic}
+\usepackage{charter}
+\usepackage{tgbonum}
+\usepackage{anyfontsize}
+\usepackage{setspace}
+
+\addtolength{\topmargin}{-0.5in}
+\addtolength{\textheight}{1.0in}
+\definecolor{gr}{RGB}{225,225,225}
+
+\input{info}
+
+\begin{document}
+\fontfamily{cmr}\selectfont
+% Shaded header banner
+\AddToShipoutPictureBG{%
+\color{gr}
+\AtPageUpperLeft{\rule[-1.6in]{\paperwidth}{1.6in}}
+}
+
+% Header
+\begin{center}
+{\Huge \scshape \myname}\par
+{\mytitle}
+
+\href{mailto:\myemail}{\faEnvelope~ \myemail}\hfill
+\href{https://www.\mywebsite}{\faGlobe~ \mywebsite}\hfill
+\href{tel:\phone}{\faPhone~ \phone}\hfill
+\faMapMarker~ \mylocation
+\end{center}
+
+\vspace{0.2in}
+\onehalfspacing
+% Opening block
+\fontsize{13}{15}\selectfont
+\today\hfill
+
+\vspace{0.1in}
+\recipient\\%
+%\recipienttitle\\
+\fullcompany\\
+\city \state\\
+% \country\\
+\\
+\vspace{-0.1in}\greeting~\recipientfirstname,\\
+
+% {\underline{Position}: }\jobtitle
+
+% Body
+\vspace{-0.1in}\setlength\parindent{24pt}
+
+\input{body}
+
+% Closer
+
+%\vfill
+\vspace{0.5in}
+\begin{flushright}
+
+\closer,\\
+\vspace{0.1in}
+\myname\\
+
+\end{flushright}
+
+\end{document}
