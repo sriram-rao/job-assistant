@@ -3,7 +3,7 @@
 Automates parts of the job-application process. I’m starting with auto-tuning applications: programmatically tailoring resumes and cover letters for each role using tokenized templates and sensible defaults.
 
 ## What It Does (today)
-- Tokenized replacements: use placeholders like `%%myname` in templates; they’re replaced via a simple helper in `util/string.py` and data you provide.
+- Tokenized replacements: use placeholders like `%%mynamei%%` in templates; they’re replaced via a simple helper in `util/strings.py` and data you provide.
 - Central defaults: `defaults.py` defines `Common`, `Letter`, and `Resume` plus `with_overrides()` to merge and override values.
 - PDF builds: `main.py` invokes `tex.compile_to_pdf(...)` to produce PDFs for the resume and a simple cover letter from LaTeX sources in `resume/` and `letter/`.
 
@@ -27,4 +27,3 @@ Automates parts of the job-application process. I’m starting with auto-tuning 
 Notes
 - Keep secrets (API keys, tokens) out of the repo; prefer environment variables or local config files ignored by Git.
 - LaTeX and any required tooling must be installed locally for PDF builds.
-

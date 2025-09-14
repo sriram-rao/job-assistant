@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 
-from util import date, string
+from util import date, strings
 
 
 def compile_to_pdf(file: str, working_dir: Path, target_filename: str = "", target_dir: Path = Path("target")) -> Path:
@@ -10,7 +10,7 @@ def compile_to_pdf(file: str, working_dir: Path, target_filename: str = "", targ
 
     target_dir = target_dir / date.to_directory_suffix(date.TODAY)
     target_dir.mkdir(parents=True, exist_ok=True)
-    filename = string.get_default_if_blank(target_filename) + f"_{date.get_file_suffix()}.pdf"
+    filename = strings.get_default_if_blank(target_filename) + f"_{date.get_file_suffix()}.pdf"
     file_path = (target_dir / filename).resolve()
 
     (working_dir / f"{file}.pdf").rename(file_path)

@@ -74,3 +74,29 @@ def download_page(
         return DownloadResult(url=url, html_path=None, encoding=None)
 
     return DownloadResult(url=url, html_path=html_path, encoding=encoding)
+
+
+# URL: https://jobs.ashbyhq.com/snowflake/3eb872af-0ab1-4986-8f72-e7321fcd1538
+# write a function to find a URL with the given domain in a html file 
+
+def find_url_with_domain(html: str, domain: str) -> Optional[str]:
+    """Find a URL with the given domain in HTML content."""
+    # Try multiple patterns to match different URL formats
+    patterns = [
+        rf'https?://(?:www\.)?{domain}/[\w-]+',  # Matches http(s)://domain.com/...
+        rf'"(https?://[\w.-]*{domain}[\w/%-]*)',  # Matches URLs in quotes
+        rf'url\(["\']?(https?://[\w.-]*{domain}[\w/%-]*)'  # Matches CSS url() patterns
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, html, re.IGNORECASE)
+        if not match:
+            continue
+            
+        # Get the first group if it exists, otherwise get the full match
+        url = match.group(1) if len(match.groups()) > 0 else match.group(0)
+        # Clean up any trailing quotes or special characters
+        url = url.split('"')[0].split('\'')[0].split(')')[0]
+        return url
+    
+    return None
