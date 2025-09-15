@@ -61,18 +61,27 @@ class Assistant:
             **({"page_html": html} if include_raw_html else {}),
         }
 
+    def generate_application_files(self, application: dict, out_dir: Path = Path("target")) -> dict:
+        # IN PROGRESS: write cover letter/resume outputs and return file paths
+        return {}
+
     def generate_application(
         self,
-        html: str,
+        url: str,
         *,
         model: str | None = None,
         temperature: float | None = 0.2,
         max_tokens: int | None = 800,
     ) -> str:
-        data = self.build_llm_data(html)
+        data = self.build_llm_data(self.fetch(url))
         letter_keys = list(LETTER_CONTENT.keys())
         ref_letter = "\n".join([LETTER_CONTENT.get(k, "") for k in letter_keys]).strip()
-        ref_len = max(80, len(ref_letter.split()))
+        base_words = max(80, len(ref_letter.split()))
+        min_words = max(60, int(base_words * 0.85))
+        max_words = int(base_words * 1.15)
+
+        bullets_min, bullets_max = 3, 6
+        skills_min, skills_max = 8, 12
 
         letter_schema = "{" + ",".join([f'\"{k}\":\"...\"' for k in letter_keys]) + "}"
         schema = (
@@ -85,10 +94,11 @@ class Assistant:
             "Use the provided candidate data and the plaintext job description to draft output.\n"
             "Requirements:\n"
             f"- Cover letter must have exactly these 4 keys (in order): {keys_list}.\n"
-            f"- Match the reference letter's tone and be {ref_len}±15% words.\n"
+            f"- Match the reference letter's tone and be between {min_words} and {max_words} words.\n"
             "- Do not fabricate facts; rephrase candidate experience to suit the role while staying truthful.\n"
-            "- Work experience must be resume-ready bullet points (3–6 concise bullets per role, action verbs, quantify impact).\n"
-            "- Choose 8–12 skills that occur in the job text or are close synonyms from the provided skills list.\n"
+            f"- Work experience must be resume-ready bullet points ({bullets_min}–{bullets_max} concise bullets per role, action verbs, quantify impact).\n"
+            "- Use job-description keywords wherever applicable in BOTH the work-experience bullets and the skills list; prefer exact matches or close synonyms.\n"
+            f"- Choose {skills_min}–{skills_max} skills that occur in the job text or are close synonyms from the provided skills list.\n"
             "- Keep first-person voice, concise, professional.\n"
             "Output schema: return ONLY minified JSON (no markdown, no commentary).\n"
             f"{schema}\n\n"
