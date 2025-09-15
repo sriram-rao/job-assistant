@@ -4,7 +4,10 @@ import json
 import os
 import time
 import urllib.request
-import tiktoken
+try:
+    import tiktoken  # type: ignore
+except Exception:  # optional dependency; used only for counting
+    tiktoken = None  # type: ignore
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Literal
 
@@ -150,11 +153,15 @@ class ChatGPT(LLM):
 
     def count_prompt_tokens(self, messages: Sequence[Message], model: Optional[str] = None) -> int:
         model = model or self.config.default_model
-        try:
-            enc = tiktoken.encoding_for_model(model)
-        except Exception:
-            enc = tiktoken.get_encoding("cl100k_base")
-        return sum(len(enc.encode(getattr(m, "content", ""))) for m in messages)
+        if tiktoken is not None:  # type: ignore
+            try:
+                enc = tiktoken.encoding_for_model(model)  # type: ignore[attr-defined]
+            except Exception:
+                enc = tiktoken.get_encoding("cl100k_base")  # type: ignore[attr-defined]
+            return sum(len(enc.encode(getattr(m, "content", ""))) for m in messages)
+        # Fallback approximation: 1 token ~= 4 chars
+        text = " ".join(getattr(m, "content", "") for m in messages)
+        return max(1, len(text) // 4)
 
     def unit_price(self, model: str, kind: Literal["input", "cached_input", "output"]) -> float:
         return float(rate.get(kind, rate)) if (rate := PROMPT_RATES.get(model)) is not None \

@@ -11,6 +11,8 @@ Coding:
 - Explanations: 1–3 sentences max.
 - No redundant comments or boilerplate.
 - Show alternatives compactly if needed.
+- DO NOT USE SINGLE UNDERSCORE _METHODS.
+- NO INLINE IMPORTS.
 
 Documentation:
 

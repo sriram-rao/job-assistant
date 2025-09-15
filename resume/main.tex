@@ -23,6 +23,7 @@
 \geometry{left=1.25cm,right=1.25cm,top=1.25cm,bottom=1.25cm,columnsep=1cm}
 % The paracol package lets you typeset columns of text in parallel
 \usepackage{paracol}
+\usepackage{multicol}
 
 \input{info}
 % Change the font if you want to, depending on whether
@@ -36,8 +37,7 @@
     % \setmainfont{Source Sans Pro}
 \else
   % If using pdflatex:
-%    \renewcommand{\familydefault}{\sfdefault}
-    \setmainfont{sans-serif}
+  \usepackage[default]{mathpazo}
 \fi
 
 \definecolor{deepcharcoal}{HTML}{1A1A1A}
@@ -147,31 +147,59 @@
 \AtBeginEnvironment{itemize}{\small}
 
 %% Set the left/right column width ratio to 6:4.
-\columnratio{0.6}
+% \columnratio{0.6}
 
 % Start a 2-column paracol. Both the left and right columns will automatically
 % break across pages if things get too long.
-\begin{paracol}{2}
+% \begin{paracol}{2}
 \RaggedRight
 
+\vspace{2mm}
+\cvsection{Skills}
+\LaTeXraggedright
+% \fontdimen2\font=\origiwspc% (original) inter word space
+% \fontdimen3\font=0.1em% inter word stretch
+\fontsize{9}{15}\selectfont%
 \vspace{-2mm}
-\cvsection{Experience}
+\hyphenchar\font=-1
+\sloppy
+% Don't overuse these \cvtag boxes — they're just eye-candies and not essential. If something doesn't fit on a single line, it probably works better as part of an itemized list (probably inlined itemized list), or just as a comma-separated list of strengths.
 
-\vspace{0.6mm}
+% The `ragged2e` document class option might cause automatic linebreaks between \cvtag to fail.
+% Either remove the ragged2e option; or 
+% add \LaTeXraggedright in the paragraph for these \cvtag
+{
+\begin{paracol}{2}
+\cvtagsingle{Languages}\newline
+\mylangs
+% \vspace{1mm}
+
+% \vspace{-2mm}
+
+\switchcolumn
+% \divider
+
+\cvtagsingle{Technologies}\newline
+\myskills
+\end{paracol}
+}
+
+\vspace{-1mm}
+\cvsection{Experience}
 % \hfill \cvtag{Industry}
-\cvevent{\titlegsr}{\workgsr}{\timegsr}{\placegsr}
+\cveventonecolumn{\titlegsr}{\workgsr}{\timegsr}{\placegsr}
 \detailgsr
 \divider
 
-\cvevent{\titledremio}{\workdremio}{\timedremio}{\placedremio}
+\cveventonecolumn{\titledremio}{\workdremio}{\timedremio}{\placedremio}
 \detaildremio 
 \divider
 
-\cvevent{\titlemicrosoft}{\workmicrosoft}{\timemicrosoft}{\placemicrosoft}
+\cveventonecolumn{\titlemicrosoft}{\workmicrosoft}{\timemicrosoft}{\placemicrosoft}
 \detailmicrosoft 
 \divider
 
-\cvevent{\titleinternmicrosoft}{\workinternmicrosoft}{\timeinternmicrosoft}{\placeinternmicrosoft}
+\cveventonecolumn{\titleinternmicrosoft}{\workinternmicrosoft}{\timeinternmicrosoft}{\placeinternmicrosoft}
 \detailinternmicrosoft 
 \divider
 
@@ -183,7 +211,7 @@
 % \detaildrexel
 % \divider
 \vspace{-5mm}
-\cvevent{\titleta}{\workta}{\timeta}{\placeta}
+\cveventonecolumn{\titleta}{\workta}{\timeta}{\placeta}
 \detailta
 
 % \divider
@@ -196,33 +224,11 @@
 
 %% Switch to the right column. This will now automatically move to the second
 %% page if the content is too long.
-\switchcolumn
+% \switchcolumn
 
-\vspace{-1mm}
-\cvsection{Skills}
-\LaTeXraggedright
-% \fontdimen2\font=\origiwspc% (original) inter word space
-% \fontdimen3\font=0.1em% inter word stretch
-\fontsize{9}{15}\selectfont%
-\hyphenchar\font=-1
-\sloppy
-% Don't overuse these \cvtag boxes — they're just eye-candies and not essential. If something doesn't fit on a single line, it probably works better as part of an itemized list (probably inlined itemized list), or just as a comma-separated list of strengths.
 
-% The `ragged2e` document class option might cause automatic linebreaks between \cvtag to fail.
-% Either remove the ragged2e option; or 
-% add \LaTeXraggedright in the paragraph for these \cvtag
-{
-\cvtag{Languages} 
-\vspace{2mm}
-\mylangs
-\vspace{-2mm}
 
-\divider
-
-\cvtag{Technologies}~ \myskills
-}
-
-\vspace{2mm}
+% \vspace{2mm}
 \cvsection{Education}
 \normalsize
 
@@ -259,13 +265,13 @@
 
 % % \cvref{name}{email}{mailing address}
 % \cvref{Prof.\ Alpha Beta}{Institute}{a.beta@university.edu}
-% {Address Line 1 \newline Address line 2}
+% {Address Line 1\\Address line 2}
 
 % \divider
 
 % \cvref{Prof.\ Gamma Delta}{Institute}{g.delta@university.edu}
-% {Address Line 1 \newline Address line 2}
+% {Address Line 1\\Address line 2}
 
-\end{paracol}
+% \end{paracol}
 
 \end{document}
