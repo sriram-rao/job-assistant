@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, List, Literal, Optional, Protocol, Sequence
+from collections.abc import Iterable, Sequence
+from typing import Literal, Protocol, overload, cast, override
 
 
 Role = Literal["system", "user", "assistant"]
@@ -16,9 +17,9 @@ class Message:
 @dataclass(slots=True)
 class ChatRequest:
     messages: Sequence[Message]
-    model: Optional[str] = None
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
+    model: str | None = None
+    temperature: float | None = None
+    max_tokens: int | None = None
     stream: bool = False
 
 
@@ -33,16 +34,16 @@ class Usage:
 class ChatChoice:
     index: int
     message: Message
-    finish_reason: Optional[str] = None
+    finish_reason: str | None = None
 
 
 @dataclass(slots=True)
 class ChatResponse:
-    id: Optional[str]
-    model: Optional[str]
-    choices: List[ChatChoice]
-    usage: Optional[Usage] = None
-    created: Optional[int] = None
+    id: str | None
+    model: str | None
+    choices: list[ChatChoice]
+    usage: Usage | None = None
+    created: int | None = None
 
 
 class LLM(Protocol):
@@ -54,32 +55,21 @@ class LLM(Protocol):
     """
 
     def chat(self, request: ChatRequest) -> ChatResponse:
-        """Synchronous chat completion call.
-
-        Implementations may raise exceptions on transport or API errors.
-        """
+        """Synchronous chat completion call."""
         ...
 
-    # Optional async interface; implement if the client supports it
     async def async_chat(self, request: ChatRequest) -> ChatResponse:  # pragma: no cover
         ...
 
-    # Tokenization and pricing helpers (to be implemented by concrete clients)
-    def count_prompt_tokens(
-        self, messages: Sequence[Message], model: Optional[str] = None
-    ) -> int:
+    def count_prompt_tokens(self, messages: Sequence[Message], model: str | None = None) -> int:
         """Return the number of input tokens for the given messages and model."""
         ...
 
-    def price_for_prompt_tokens(
-        self, token_count: int, model: Optional[str] = None
-    ) -> float:
+    def price_for_prompt_tokens(self, token_count: int, model: str | None = None) -> float:
         """Return the price in USD for a prompt consisting of token_count tokens."""
         ...
 
-    def price_for_prompt(
-        self, messages: Sequence[Message], model: Optional[str] = None
-    ) -> float:
+    def price_for_prompt(self, messages: Sequence[Message], model: str | None = None) -> float:
         """Convenience wrapper around count_prompt_tokens + price_for_prompt_tokens."""
         ...
 
@@ -98,12 +88,48 @@ def assistant(text: str) -> Message:
     return Message(role="assistant", content=text)
 
 
+@overload
+
+def to_request(
+    prompt: str,
+    *,
+    model: str | None = ...,
+    temperature: float | None = ...,
+    max_tokens: int | None = ...,
+    stream: bool = ...,
+) -> ChatRequest: ...
+
+
+@overload
+
+def to_request(
+    prompt: Iterable[str],
+    *,
+    model: str | None = ...,
+    temperature: float | None = ...,
+    max_tokens: int | None = ...,
+    stream: bool = ...,
+) -> ChatRequest: ...
+
+
+@overload
+
+def to_request(
+    prompt: Sequence[Message],
+    *,
+    model: str | None = ...,
+    temperature: float | None = ...,
+    max_tokens: int | None = ...,
+    stream: bool = ...,
+) -> ChatRequest: ...
+
+
 def to_request(
     prompt: str | Iterable[str] | Sequence[Message],
     *,
-    model: Optional[str] = None,
-    temperature: Optional[float] = None,
-    max_tokens: Optional[int] = None,
+    model: str | None = None,
+    temperature: float | None = None,
+    max_tokens: int | None = None,
     stream: bool = False,
 ) -> ChatRequest:
     """Build a ChatRequest from a prompt.
@@ -113,14 +139,15 @@ def to_request(
     - If a sequence of Message is provided, it's used directly.
     """
     if isinstance(prompt, str):
-        messages: List[Message] = [user(prompt)]
-    else:
-        # Best-effort detection: if it's already Messages, keep them
-        seq = list(prompt)  # type: ignore[arg-type]
-        if seq and isinstance(seq[0], Message):  # type: ignore[unreachable]
-            messages = seq  # type: ignore[assignment]
+        messages: list[Message] = [user(prompt)]
+    elif isinstance(prompt, Sequence):
+        seq = list(prompt)
+        if seq and isinstance(seq[0], Message):
+            messages = cast(list[Message], seq)
         else:
-            messages = [user(p) for p in seq]  # type: ignore[union-attr]
+            messages = [user(cast(str, p)) for p in seq]
+    else:
+        messages = [user(p) for p in prompt]
 
     return ChatRequest(
         messages=messages,
@@ -129,3 +156,46 @@ def to_request(
         max_tokens=max_tokens,
         stream=stream,
     )
+
+
+class DummyLLM(LLM):
+    """No-op LLM implementation used as a safe default.
+
+    Returns an empty assistant message and zero token/accounting data.
+    """
+
+    @override
+    def chat(self, request: ChatRequest) -> ChatResponse:
+        return ChatResponse(
+            id=None,
+            model=request.model,
+            choices=[
+                ChatChoice(
+                    index=0,
+                    message=Message(role="assistant", content=""),
+                    finish_reason="stop",
+                )
+            ],
+            usage=Usage(),
+            created=None,
+        )
+
+    @override
+    async def async_chat(self, request: ChatRequest) -> ChatResponse:  # pragma: no cover
+        return self.chat(request)
+
+    @override
+    def count_prompt_tokens(self, messages: Sequence[Message], model: str | None = None) -> int:
+        return 0
+
+    @override
+    def price_for_prompt_tokens(self, token_count: int, model: str | None = None) -> float:
+        return 0.0
+
+    @override
+    def price_for_prompt(self, messages: Sequence[Message], model: str | None = None) -> float:
+        return 0.0
+
+
+# Shared singleton instance to use as a safe default
+DUMMY_LLM: LLM = DummyLLM()
