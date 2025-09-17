@@ -1,12 +1,14 @@
-from pathlib import Path
+import json
 import logging
-from logging.handlers import RotatingFileHandler
 import threading
-from net.web import find_url_with_domain
-from net.browser import Browser
-from util.tex import compile_to_pdf
-from net.assistant import Assistant
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+
 from ml.openai import ChatGPT
+from net.assistant import Assistant
+from net.browser import Browser
+from net.web import find_url_with_domain
+from util.tex import compile_to_pdf
 
 
 def setup_logging(dir_path: Path | None = None, level: int = logging.INFO) -> None:
@@ -71,9 +73,10 @@ def textify_file(path: str) -> None:
 
 def demo_llm() -> None:
     # Placeholder URL and question; replace with a real job posting for actual use
-    url = "https://wellfound.com/jobs/3418603-founding-engineer"
+    url = "file:///Users/sriramrao/Code/job-assistant/target/openings/Founding%20Engineer%20at%20Noise%20%E2%80%A2%20New%20York%20%E2%80%A2%20Remote%20(Work%20from%20Home)%20_%20Wellfound.html"
     question = "Write a cover letter showing my suitability for the role"
-    print(Assistant(ChatGPT()).generate_application(url, custom_prompt=question))
+    letter: dict[str, str] = json.loads(Assistant(ChatGPT()).generate_application(url, custom_prompt=question))["letter"]
+    print("Generated Cover Letter:\n\n\t", "\n\t".join(letter.values()))
 
 
 if __name__ == "__main__":
@@ -82,3 +85,4 @@ if __name__ == "__main__":
         t.name = "main"
     setup_logging()
     demo_llm()
+

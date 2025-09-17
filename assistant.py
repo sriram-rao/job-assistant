@@ -93,7 +93,7 @@ class Assistant:
         max_words = int(base_words * 1.15)
 
         bullets_min, bullets_max = 3, 6
-        skills_min, skills_max = 8, 12
+        skills_min, skills_max = 8, 15
 
         letter_schema = "{" + ",".join([f'"{k}":"..."' for k in letter_keys]) + "}"
         schema = (
@@ -104,13 +104,14 @@ class Assistant:
         return (
             "You are assisting with a job application.\n"
             "Use the provided candidate data and the plaintext job description to draft output.\n"
+            "Make all content as specific to the job description and the company as possible.\n"
             "Requirements:\n"
             f"- Cover letter must have exactly these 4 keys (in order): {keys_list}.\n"
-            f"- Match the reference letter's tone and be between {min_words} and {max_words} words.\n"
+            f"- Match the reference letter's tone and be between {min_words} and {max_words} words. The content is just a guideline.\n"
             "- Do not fabricate facts; rephrase candidate experience to suit the role while staying truthful.\n"
             f"- Work experience must be resume-ready bullet points ({bullets_min}–{bullets_max} concise bullets per role, action verbs, quantify impact).\n"
-            "- Use job-description keywords wherever applicable in BOTH the work-experience bullets and the skills list; prefer exact matches or close synonyms.\n"
-            f"- Choose {skills_min}–{skills_max} skills that occur in the job text or are close synonyms from the provided skills list.\n"
+            "- Use keywords from the job description where applicable in BOTH the work-experience bullets; prefer exact matches.\n"
+            f"- Choose {skills_min}–{skills_max} skills that occur in the job text or are close synonyms.\n"
             "- Keep first-person voice, concise, professional.\n"
             "Output schema: return ONLY minified JSON (no markdown, no commentary).\n"
             f"{schema}\n\n"
@@ -134,7 +135,7 @@ class Assistant:
         letter_keys = list(LETTER_CONTENT.keys())
         ref_letter = "\n".join([LETTER_CONTENT.get(k, "") for k in letter_keys]).strip()
 
-        prompt = custom_prompt or self.generate_application_prompt(data, ref_letter, letter_keys)
+        prompt = str(custom_prompt) + "\n" + self.generate_application_prompt(data, ref_letter, letter_keys)
         return self.ask(prompt, model=model, temperature=temperature, max_tokens=max_tokens)
 
     def ask_about(self, question: str, about_url: str) -> str:
