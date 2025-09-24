@@ -1,6 +1,5 @@
 import json
 import logging
-import threading
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -9,6 +8,11 @@ from net.assistant import Assistant
 from net.browser import Browser
 from net.web import find_url_with_domain
 from util.tex import compile_to_pdf
+
+
+def discard(value: object) -> None:
+    """Ignore a value."""
+    pass
 
 
 def setup_logging(dir_path: Path | None = None, level: int = logging.INFO) -> None:
@@ -29,8 +33,9 @@ def setup_logging(dir_path: Path | None = None, level: int = logging.INFO) -> No
 
 
 def generate_pdfs() -> None:
-    _ = compile_to_pdf("main", Path("resume"), "resume")
-    _ = compile_to_pdf("simplecover", Path("letter"), "letter")
+    """Compile resume and cover letter PDFs."""
+    discard(compile_to_pdf("main", Path("resume"), "resume"))
+    discard(compile_to_pdf("simplecover", Path("letter"), "letter"))
 
 
 def analyze_job_posting(file_path: Path, domain: str = 'ashbyhq.com') -> None:
@@ -79,10 +84,17 @@ def demo_llm() -> None:
     print("Generated Cover Letter:\n\n\t", "\n\t".join(letter.values()))
 
 
-if __name__ == "__main__":
-    t = threading.current_thread()
-    if not t.name or t.name == "MainThread":
-        t.name = "main"
-    setup_logging()
-    demo_llm()
+def generate_application_details(url: str) -> dict[str, object]:
+    """Generate structured application details for a job posting URL.
 
+    Returns a dict with keys like "letter", "work_experience", and "skills".
+    """
+    assistant = Assistant(ChatGPT())
+    result = assistant.generate_application(url)
+    return json.loads(result)
+
+
+if __name__ == "__main__":
+    Assistant().ask_about("Why do you want to work at Pylon?",
+                          "https://jobs.ashbyhq.com/pylon-labs/6c61bf0d-41d8-436a-bd3b-ee1561ad40f7/")
+    demo_llm()

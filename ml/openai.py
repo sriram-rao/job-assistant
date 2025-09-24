@@ -9,7 +9,7 @@ try:
 except Exception:  # optional dependency; used only for counting
     tiktoken = None  # type: ignore
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Literal
+from typing import Dict, Optional, Sequence, Literal
 
 from .llm import (
     ChatChoice,

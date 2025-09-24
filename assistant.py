@@ -1,19 +1,20 @@
-from pathlib import Path
-import logging
-import threading
-from util import strings as string
-from net.web import get_html
-from ml.llm import to_request, LLM, DUMMY_LLM
-import re
 import html as htmlmod
-from defaults import PERSON, EXPERIENCE, SKILLS, SKILLS_CONSOLIDATED, LETTER_CONTENT
-from typing import TypedDict, NotRequired
+import logging
+import re
+import threading
+from pathlib import Path
+from typing import Any, NotRequired, TypedDict
+
+from defaults import EXPERIENCE, LETTER_CONTENT, PERSON, SKILLS, SKILLS_CONSOLIDATED
+from ml.llm import DUMMY_LLM, LLM, to_request
+from net.web import get_html
+from util import strings as string
 
 
 class LLMData(TypedDict):
     page_text: str
-    person: dict[str, object]
-    experience: list[dict[str, object]]
+    person: dict[str, str | dict[str, str]]
+    experience: list[dict[str, str | list[str]]]
     skills: list[str]
     cover_letter: dict[str, str]
     page_html: NotRequired[str]
@@ -80,12 +81,36 @@ class Assistant:
             data["page_html"] = html
         return data
 
-    def store_application(self, _application: dict[str, object], out_dir: Path | None = None) -> dict[str, Path]:
+    def make_letter(self, details: dict[str, str], letter: dict[str, str]) -> str:
+        letter_keys = list(LETTER_CONTENT.keys())
+        letter_parts = [letter.get(key, "") for key in letter_keys]
+
+        letter_content = "\n\n".join(part for part in letter_parts if part.strip())
+
+        # The letter details (recipient etc) are to be replaced in letter/info.tex
+
+        for key, value in details.items():
+            placeholder = string.pad(key)
+            letter_content = letter_content.replace(placeholder, value)
+
+        return letter_content
+
+    def make_resume(self, work_experience: list[dict[str, str | list[str]]], skills: list[str]) -> str:
+        return ""
+
+    def store_application(self, application: dict[str, Any], out_dir: Path | None = None) -> dict[str, Path]:
         # TODO: write cover letter/resume outputs and return file paths
-        if out_dir is None:
-            out_dir = Path("target")
-        paths: dict[str, Path] = {}
-        return paths
+        out_dir = out_dir or Path("target")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        # create letter
+        letter: str = self.make_letter(application["details"], application["letter"])
+        # save letter
+        string.write_to_file(out_dir / "letter.txt", letter)
+        # create resume
+        resume: str = self.make_resume(application["work_experience"], application["skills"])
+        # save resume
+        string.write_to_file(out_dir / "resume.txt", resume)
+        return {"letter": out_dir / "letter.txt", "resume": out_dir / "resume.txt"}
 
     def generate_application_prompt(self, data: LLMData, cover_letter: str, letter_keys: list[str]) -> str:
         base_words = max(80, len(cover_letter.split()))
@@ -121,6 +146,7 @@ class Assistant:
             f"Reference letter content (structure/length guide):\n{cover_letter}\n\n"
             f"Job description (plaintext):\n{data['page_text']}\n"
         )
+
 
     def generate_application(
         self,

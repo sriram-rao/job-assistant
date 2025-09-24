@@ -1,3 +1,6 @@
+from pathlib import Path
+
+
 def is_empty(string: str):
     return string is None or len(string) == 0
 
@@ -8,4 +11,11 @@ def get_default_if_blank(string: str, default: str = "result"):
 
 def pad(string: str, left_padding: str = "%%", right_padding: str = ""):
     return left_padding + string + (left_padding if is_empty(right_padding) else right_padding)
-    
+
+
+def write_to_file(path: str | Path, content: str) -> None:
+    if isinstance(path, str):
+        path = Path(path)
+    with path.open('w') as file:
+        _ = file.write(content)
+

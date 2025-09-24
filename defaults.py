@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Dict, Mapping, Optional, Iterable, List
+from typing import Iterable, Any
 
 
 # Consolidated personal information
-PERSON: Dict[str, object] = {
+PERSON: dict[str, str | dict[str, str]] = {
     # Core Identity
     "first_name": "Sriram",
     "last_name": "Rao",
@@ -29,7 +29,7 @@ PERSON: Dict[str, object] = {
     )
 }
 
-SKILLS: Dict[str, List[str]] = {
+SKILLS: dict[str, list[str]] = {
     "languages": [
         "Python", "C#", "Java", "C++", "C", "Ruby", "Swift", "Lisp", "Prolog", "SQL",
     ],
@@ -41,7 +41,7 @@ SKILLS: Dict[str, List[str]] = {
     "infrastructure": ["Docker", "AWS", "Azure", "CI/CD", "Custom IaC"],
 }
 
-EXPERIENCE: List[Dict[str, object]] = [
+EXPERIENCE: list[dict[str, str | list[str]]] = [
     {
         "company": "University of California, Irvine",
         "role": "Graduate Student Researcher",
@@ -119,7 +119,7 @@ EXPERIENCE: List[Dict[str, object]] = [
     },
 ]
 
-EDUCATION: List[Dict[str, object]] = [
+EDUCATION: list[dict[str, object]] = [
     {
         "institution": "University of California, Irvine",
         "degree": "MS in Computer Science",
@@ -147,7 +147,7 @@ EDUCATION: List[Dict[str, object]] = [
 ]
 
 # Consolidated lists (skills/areas and packages)
-SKILLS_CONSOLIDATED: Dict[str, List[str]] = {
+SKILLS_CONSOLIDATED: dict[str, list[str]] = {
     # Core skill groups (superset of SKILLS)
     "languages": [
         "Python", "C#", "Java", "C++", "C", "Ruby", "Swift", "Lisp", "Prolog", "SQL",
@@ -189,7 +189,7 @@ SKILLS_CONSOLIDATED: Dict[str, List[str]] = {
     ],
 }
 
-LETTER_CONTENT: Dict[str, str] = {
+LETTER_CONTENT: dict[str, str] = {
     "Intro": (
         "I am a software engineer with prior experience at Microsoft and the University of California, Irvine. "
         "I am interested in the member of technical staff roles at {company}. "
@@ -216,7 +216,7 @@ LETTER_CONTENT: Dict[str, str] = {
 }
 
 # Defaults specific to cover letters
-Letter: Dict[str, str] = {
+Letter: dict[str, str] = {
     # Letter basics
     "greeting": "Hello",
     "recipientfirstname": "Hiring Manager",
@@ -235,36 +235,48 @@ Letter: Dict[str, str] = {
 }
 
 
-def with_overrides(
-    overrides: Optional[Mapping[str, str]] = None,
+def flatten_person(person: dict[str, str | dict[str, str]]) -> dict[str, str]:
+    """Flatten PERSON where values are str or dict[str, str] into str->str keys."""
+    out: dict[str, str] = {}
+    for k, v in person.items():
+        if isinstance(v, str):
+            out[k] = v
+            continue
+        [out.__setitem__(f"{k}_{sk}", sv) for sk, sv in v.items()]
+    return out
+
+
+def flatten_experience(experience: list[dict[str, Any]]) -> dict[str, str]:
+    """Flatten EXPERIENCE into str->str using indexed prefixes."""
+    flattened: dict[str, str] = {}
+    for i, exp in enumerate(experience):
+        prefix = f"exp_{i}"
+        for key, value in exp.items():
+            value: str | list[str] 
+            if key != "bullets":
+                flattened[f"{prefix}_{key}"] = str(value)
+                continue
+
+            [flattened.__setitem__(f"{prefix}_bullet_{j}", bullet) for j, bullet in enumerate(value)]
+    return flattened
+
+
+def get_details(
+    overrides: dict[str, str] = {},
     include: Iterable[str] = ("common", "letter", "resume"),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Merge defaults from the selected sets and overlay user-provided overrides.
-
-    include accepts any of: "common", "letter", "resume" (case-insensitive),
-    or "Common", "Letter", "Resume". Order matters for resolving collisions;
-    later sets in the sequence override earlier ones.
-
-    This function does not mutate the module-level constants; it always returns
-    a new dictionary.
+    include accepts any of: "common", "letter", "resume" (case-insensitive), 
+    order matters for resolving collisions;
+    Always returns a new dictionary object.
     """
-    pool: Dict[str, Dict[str, str]] = {
-        "common": Common,
+    details: dict[str, dict[str, str]] = {
+        "common": flatten_person(PERSON),
         "letter": Letter,
-        "resume": Resume,
+        "resume": flatten_experience(EXPERIENCE),
     }
-    merged: Dict[str, str] = {}
-    for name in include:
-        key = str(name).lower()
-        mapping = pool.get(key)
-        if mapping is None:
-            print(
-                f"Unknown defaults set: {name!r}. Use one of ('common', 'letter', 'resume')."
-            )
-            continue
-        # Merge into a new dict to avoid mutating any source dicts
-        merged = {**merged, **mapping}
-    if overrides:
-        merged = {**merged, **dict(overrides)}
+    merged: dict[str, str] = {}
+    merged = { key: value for name in include for key, value in details[name.lower()].items() }
+    merged.update(overrides)
     return merged

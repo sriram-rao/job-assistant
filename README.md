@@ -1,59 +1,67 @@
 # Job Assistant
 
-Automates parts of the job-application process. I’m starting with auto-tuning applications: programmatically tailoring resumes and cover letters for each role using tokenized templates and sensible defaults.
+A small helper to tailor resumes and cover letters for specific job posts using templates, sensible defaults, and an LLM.
 
-## What It Does (today)
-- Tokenized replacements: placeholders like `%%myname%%` replaced via `util/strings.py`.
-- Central defaults: `defaults.py` provides personal data, skills, and letter/resume values.
-- PDF builds: `main.py` uses `util.tex.compile_to_pdf(...)` for resume/letter PDFs.
-- Assistant + LLM: fetch a job page, extract text, build structured data, and generate a tailored application JSON (letter, work experience bullets, skills).
+### Features
+- Token replacement in LaTeX/text templates via `util/strings.py` (`%%token%%`).
+- Central defaults in `defaults.py`: `PERSON`, `EXPERIENCE`, `SKILLS (+ CONSOLIDATED)`, `LETTER_CONTENT`.
+- Assistant + LLM: fetch URL → extract text → build candidate data → generate application JSON.
+- PDF build for resume and letter (LaTeX required).
 
-## Workflow Overview
-1. Author LaTeX templates in `resume/` and `letter/` with placeholders like `%%myname`, `%%company`, etc.
-2. Provide data via `defaults.py` and/or a small dict at use time.
-3. Build artifacts by running `python main.py` (or integrate the `assistant.replace(...)` helper in other scripts).
+### Install
+- Python 3.11+
+- Optional: LaTeX (TeX Live/MiKTeX) for PDFs
+- Install deps as needed for your LLM client (see `ml/`).
 
-## Roadmap
-- Job description parsing to extract skills, keywords, and requirements.
-- Company and role research signals to guide customization.
-- Template selection and content blocks based on extracted signals.
-- Portal autofill and submission helpers (safe, review-first flow).
-- Application tracking and iteration loops to improve targeting.
+### Setup
+1) Edit `defaults.py` to add your details and letter sections.
+2) Put templates in `resume/` and `letter/` using tokens like `%%first_name%%`, `%%company%%`.
 
-## Usage (basic)
-- Edit values in `defaults.py` to set personal data, experience, skills, and letter snippets.
-- Use `%%token` placeholders in your LaTeX files under `resume/` and `letter/`.
-- Run: `python main.py` to compile the resume and cover letter PDFs.
+### Quickstart
+```python
+from assistant import Assistant
+from ml.openai import ChatGPT
 
-## Assistant + LLM
-- Networking: `net.web.get_html(url) -> str` fetches HTML; `net.web.download_page(url) -> Path` saves it.
-- Assistant: `assistant.Assistant(llm)` exposes:
-  - `fetch(url) -> str`: returns HTML string.
-  - `to_text(html) -> str`: plaintext from HTML (scripts/styles removed; structure-aware newlines).
-  - `build_llm_data(html) -> dict`: merges page text + your details/experience/skills/letter content.
-  - `generate_application(html, *, model=None, temperature=0.2, max_tokens=800) -> str`: returns minified JSON.
+url = "https://example.com/job-post"
+assistant = Assistant(ChatGPT())  # or Assistant() to use the dummy LLM
+result_json_str = assistant.generate_application(url)
+```
 
-Output schema (JSON):
-- letter: object with 4 keys from `defaults.LETTER_CONTENT` (same order).
-- work_experience: [{ company, role, start, end, location, bullets: [string] }].
-- skills: 8–12 items chosen from job text or close synonyms from your skills pool.
+Pretty-print and save next to an HTML file you saved:
+```python
+import json
+from pathlib import Path as P
+p = P("target/openings/job.html")
+data = json.loads(result_json_str)
+(p.with_suffix(".application.json")).write_text(
+    json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+)
+```
 
-Example:
-- from assistant import Assistant
-- from ml.openai import ChatGPT
-- html = Assistant().fetch("https://example.com/job")
-- result_json = Assistant(ChatGPT()).generate_application(html)
+### CLI / scripts (`main.py`)
+- `demo_llm()` – quick demo that prints a generated letter.
+- `generate_pdfs()` – compiles LaTeX in `resume/` and `letter/`.
+- `textify_file(path)` – prints plaintext from an HTML file.
+- Logging: `setup_logging()` writes to `target/logs/app.log` and stdout.
 
-Tip: Save beautified JSON
-- import json, pathlib as P
-- p = P.Path("target/job.html")
-- data = json.loads(result_json)
-- (p.with_suffix(".application.json")).write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+### Assistant API (cheatsheet)
+- `Assistant.fetch(url) -> str` – HTML.
+- `Assistant.to_text(html) -> str` – plaintext.
+- `Assistant.build_llm_data(html, include_raw_html=False) -> dict` – merges page text + your data.
+- `Assistant.generate_application(url, *, model=None, temperature=0.2, max_tokens=800, custom_prompt=None) -> str` – minified JSON string.
+- `Assistant.ask_about(question, about_url) -> str` – same as above, with your question prepended.
+- `Assistant.store_application(application: dict, out_dir=Path("target")) -> {"letter": Path, "resume": Path}` – writes `letter.txt` and `resume.txt`.
 
-## Logging
-- `main.setup_logging()` writes to `target/logs/app.log` (10 MB rotate, 5 backups) and stdout.
-- Thread-aware logger names for Assistant (`assistant.<thread-name>`); main sets the default thread name to `main`.
+### Output schema (returned JSON string)
+```json
+{
+  "letter": { "Intro": "...", "Why do I want to join this company?": "...", "Why should this company pick me?": "...", "Outro": "..." },
+  "work_experience": [ { "company": "...", "role": "...", "start": "...", "end": "...", "location": "...", "bullets": ["..."] } ],
+  "skills": ["..."]
+}
+```
 
-Notes
-- Keep secrets (API keys, tokens) out of the repo; prefer environment variables or local config files ignored by Git.
-- LaTeX and any required tooling must be installed locally for PDF builds.
+### Notes
+- Keep secrets out of the repo (use env vars/local config).
+- `make_resume(...)` is a placeholder—fill in as needed.
+- LaTeX is only required if you build PDFs.
