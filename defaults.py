@@ -190,7 +190,7 @@ SKILLS_CONSOLIDATED: dict[str, list[str]] = {
 }
 
 LETTER_CONTENT: dict[str, str] = {
-    "Intro": (
+    "Introduction": (
         "I am a software engineer with prior experience at Microsoft and the University of California, Irvine. "
         "I am interested in the member of technical staff roles at {company}. "
         "I am an excellent choice for these positions."
@@ -210,7 +210,7 @@ LETTER_CONTENT: dict[str, str] = {
         "trading off query latency with resource usage. I collaborated in cross-functional teams with IoT & civil engineers, chemists "
         "on APIs and metric dashboards to monitor drone data from a prescribed burn scenario."
     ),
-    "Outro": (
+    "Closing": (
         "Thank you for reading my letter. I look forward to the opportunity to discuss how my experience and skills can contribute to {company}."
     ),
 }

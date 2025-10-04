@@ -33,3 +33,9 @@ out/
 *.xdv
 missfont.log
 pf/
+
+# Generated application files
+letter/body.tex
+letter/info.tex
+resume/info.tex
+resume/workexperience.tex

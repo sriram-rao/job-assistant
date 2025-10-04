@@ -3,7 +3,7 @@ from .llm import (
     Message,
     ChatRequest,
     ChatResponse,
-    ChatChoice,
+    ResponseMessage,
     Usage,
     user,
     system,

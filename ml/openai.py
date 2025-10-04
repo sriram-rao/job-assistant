@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 import urllib.request
@@ -9,15 +10,14 @@ try:
 except Exception:  # optional dependency; used only for counting
     tiktoken = None  # type: ignore
 from dataclasses import dataclass
-from typing import Dict, Optional, Sequence, Literal
+from typing import Dict, Optional, Sequence, Literal, cast
 
 from .llm import (
-    ChatChoice,
-    ChatRequest,
-    ChatResponse,
+    Request,
+    Response,
     LLM,
     Message,
-    Usage,
+    Role,
 )
 
 
@@ -47,7 +47,7 @@ PROMPT_RATES: Dict[str, float | Dict[str, float]] = {
 
 
 @dataclass
-class ChatGPTConfig:
+class OpenAIConfig:
     default_model: str = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
     api_key: Optional[str] = os.environ.get(OPENAI_API_KEY_ENV)
     timeout: float = 60.0
@@ -55,47 +55,25 @@ class ChatGPTConfig:
 
 class _Message(Message):
     @classmethod
-    def from_dict(cls, data: dict) -> 'Message':
-        return cls(
-            role=data.get("role", "assistant"),
+    def from_dict(clas, data: dict) -> 'Message':
+        return clas(
+            payload={"role": cast(Role, data.get("role", "assistant"))},
             content=data.get("content", "")
         ) if data else None
         
     def to_dict(self) -> dict:
         return {
-            "role": self.role,
+            "role": self.payload.get("role", "assistant"),
             "content": self.content
         }
 
 
-class _ChatChoice(ChatChoice):
-    @classmethod
-    def from_dict(cls, data: dict, index: int) -> 'ChatChoice':
-        return cls(
-            index=index,
-            message=Message.from_dict(data.get("message", {})),
-            finish_reason=data.get("finish_reason")
-        ) if data else None
-
-
-class _Usage(Usage):
-    @classmethod
-    def from_dict(cls, data: dict) -> 'Usage':
-        return cls(
-            prompt_tokens=int(data.get("prompt_tokens", 0)),
-            completion_tokens=int(data.get("completion_tokens", 0)),
-            total_tokens=int(data.get("total_tokens", 0)),
-        ) if data else None
-
-
 Message = _Message
-ChatChoice = _ChatChoice
-Usage = _Usage
 
 
-class ChatGPT(LLM):
-    def __init__(self, config: Optional[ChatGPTConfig] = None) -> None:
-        self.config = config or ChatGPTConfig()
+class OpenAI(LLM):
+    def __init__(self, config: Optional[OpenAIConfig] = None) -> None:
+        self.config = config or OpenAIConfig()
 
     def make_request_headers(self) -> Dict[str, str]:
         return {
@@ -103,9 +81,9 @@ class ChatGPT(LLM):
             "Authorization": f"Bearer {self.config.api_key}",
         }
 
-    def build_payload(self, request: ChatRequest, model: str) -> Dict:
+    def build_payload(self, request: Request, model: str) -> Dict:
         def get_msg_dict(m: Message) -> Dict[str, str]:
-            return {"role": m.role, "content": m.content}
+            return {"role": str(m.payload.get("role", "assistant")), "content": m.content}
 
         payload = {
             "model": model,
@@ -116,23 +94,34 @@ class ChatGPT(LLM):
         }
         return {k: v for k, v in payload.items() if v is not None}
 
-    def parse_response(self, response_data: Dict, model: str, start_time: int) -> ChatResponse:
-        choices = [
-            ChatChoice.from_dict(ch, i)
-            for i, ch in enumerate(response_data.get("choices", []))
-        ]
+    def parse_response(self, response_data: Dict, model: str, start_time: int) -> Response:
+        choices = []
+        for i, ch in enumerate(response_data.get("choices", [])):
+            msg_data = ch.get("message", {})
+            msg = Message.from_dict(msg_data)
+            if msg:
+                msg.payload["index"] = i
+                msg.payload["finish_reason"] = ch.get("finish_reason")
+                choices.append(msg)
 
-        usage_obj = Usage.from_dict(response_data.get("usage", {}))
+        usage_data = response_data.get("usage", {})
+        if usage_data:
+            prompt_tokens = int(usage_data.get("prompt_tokens", 0))
+            completion_tokens = int(usage_data.get("completion_tokens", 0))
+            total_tokens = int(usage_data.get("total_tokens", 0))
+            logging.info(
+                f"OpenAI Usage - Model: {model}, Input: {prompt_tokens}, "
+                f"Output: {completion_tokens}, Total: {total_tokens}"
+            )
 
-        return ChatResponse(
+        return Response(
             id=response_data.get("id"),
             model=response_data.get("model", model),
             choices=choices,
-            usage=usage_obj,
             created=response_data.get("created", start_time),
         )
 
-    def chat(self, request: ChatRequest) -> ChatResponse:
+    def chat(self, request: Request) -> Response:
         model = request.model or self.config.default_model
         url = f"{OPENAI_API_BASE}/chat/completions"
         
@@ -148,38 +137,5 @@ class ChatGPT(LLM):
             
         return self.parse_response(response_data, model, start_time)
 
-    async def async_chat(self, request: ChatRequest) -> ChatResponse:
+    async def async_chat(self, request: Request) -> Response:
         return self.chat(request)
-
-    def count_prompt_tokens(self, messages: Sequence[Message], model: Optional[str] = None) -> int:
-        model = model or self.config.default_model
-        if tiktoken is not None:  # type: ignore
-            try:
-                enc = tiktoken.encoding_for_model(model)  # type: ignore[attr-defined]
-            except Exception:
-                enc = tiktoken.get_encoding("cl100k_base")  # type: ignore[attr-defined]
-            return sum(len(enc.encode(getattr(m, "content", ""))) for m in messages)
-        # Fallback approximation: 1 token ~= 4 chars
-        text = " ".join(getattr(m, "content", "") for m in messages)
-        return max(1, len(text) // 4)
-
-    def unit_price(self, model: str, kind: Literal["input", "cached_input", "output"]) -> float:
-        return float(rate.get(kind, rate)) if (rate := PROMPT_RATES.get(model)) is not None \
-            else float('nan')
-
-    def price_tokens(self, token_count: int, model: Optional[str], kind: Literal["input", "cached_input", "output"]) -> float:
-        model_name = model or self.config.default_model
-        return float(token_count) * self.unit_price(model_name, kind)
-
-    def price_for_prompt_tokens(self, token_count: int, model: Optional[str] = None) -> float:
-        return self.price_tokens(token_count, model, "input")
-
-    def price_for_cached_prompt_tokens(self, token_count: int, model: Optional[str] = None) -> float:
-        return self.price_tokens(token_count, model, "cached_input")
-
-    def price_for_output_tokens(self, token_count: int, model: Optional[str] = None) -> float:
-        return self.price_tokens(token_count, model, "output")
-
-    def price_for_prompt(self, messages: Sequence[Message], model: Optional[str] = None) -> float:
-        prompt_token_count = self.count_prompt_tokens(messages, model=model)
-        return self.price_for_prompt_tokens(prompt_token_count, model=model)

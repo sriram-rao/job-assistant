@@ -32,7 +32,7 @@ Pretty-print and save next to an HTML file you saved:
 import json
 from pathlib import Path as P
 p = P("target/openings/job.html")
-data = json.loads(result_json_str)
+data = json.loads("result_json_str")
 (p.with_suffix(".application.json")).write_text(
     json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
 )

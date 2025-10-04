@@ -3,6 +3,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+from assistant import html_to_text
 from ml.openai import ChatGPT
 from net.assistant import Assistant
 from net.browser import Browser
@@ -73,7 +74,7 @@ def test_browse_greenhouse(url: str) -> None:
 
 def textify_file(path: str) -> None:
     html = Path(path).read_text(encoding='utf-8', errors='ignore')
-    print(Assistant().to_text(html))
+    print(html_to_text(html))
 
 
 def demo_llm() -> None:
@@ -84,14 +85,23 @@ def demo_llm() -> None:
     print("Generated Cover Letter:\n\n\t", "\n\t".join(letter.values()))
 
 
-def generate_application_details(url: str) -> dict[str, object]:
-    """Generate structured application details for a job posting URL.
-
-    Returns a dict with keys like "letter", "work_experience", and "skills".
+def generate_application_from_url(url: str, output_dir: Path | None = None) -> dict[str, Path]:
+    """Generate and save tailored application materials (cover letter and resume) for a job posting URL.
+    
+    Args:
+        url: Job posting URL to generate application for
+        output_dir: Directory to save application files (defaults to "target")
+    
+    Returns:
+        Dict mapping "letter" and "resume" to their respective file paths
     """
-    assistant = Assistant(ChatGPT())
-    result = assistant.generate_application(url)
-    return json.loads(result)
+    setup_logging()
+    logging.info(f"Generating application for: {url}")
+    
+    output_paths = Assistant(ChatGPT()).generate_and_save_application(url, output_dir)
+    
+    logging.info(f"Application saved to: {output_paths}")
+    return output_paths
 
 
 if __name__ == "__main__":

@@ -10,12 +10,12 @@ Role = Literal["system", "user", "assistant"]
 
 @dataclass(slots=True)
 class Message:
-    role: Role
+    payload: dict[str, object]
     content: str
 
 
 @dataclass(slots=True)
-class ChatRequest:
+class Request:
     messages: Sequence[Message]
     model: str | None = None
     temperature: float | None = None
@@ -24,25 +24,10 @@ class ChatRequest:
 
 
 @dataclass(slots=True)
-class Usage:
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    total_tokens: int = 0
-
-
-@dataclass(slots=True)
-class ChatChoice:
-    index: int
-    message: Message
-    finish_reason: str | None = None
-
-
-@dataclass(slots=True)
-class ChatResponse:
+class Response:
     id: str | None
     model: str | None
-    choices: list[ChatChoice]
-    usage: Usage | None = None
+    choices: list[Message]
     created: int | None = None
 
 
@@ -54,38 +39,26 @@ class LLM(Protocol):
     schemas and these simple dataclasses.
     """
 
-    def chat(self, request: ChatRequest) -> ChatResponse:
+    def chat(self, request: Request) -> Response:
         """Synchronous chat completion call."""
         ...
 
-    async def async_chat(self, request: ChatRequest) -> ChatResponse:  # pragma: no cover
-        ...
-
-    def count_prompt_tokens(self, messages: Sequence[Message], model: str | None = None) -> int:
-        """Return the number of input tokens for the given messages and model."""
-        ...
-
-    def price_for_prompt_tokens(self, token_count: int, model: str | None = None) -> float:
-        """Return the price in USD for a prompt consisting of token_count tokens."""
-        ...
-
-    def price_for_prompt(self, messages: Sequence[Message], model: str | None = None) -> float:
-        """Convenience wrapper around count_prompt_tokens + price_for_prompt_tokens."""
+    async def async_chat(self, request: Request) -> Response:  # pragma: no cover
         ...
 
 
 # Convenience helpers
 
 def user(text: str) -> Message:
-    return Message(role="user", content=text)
+    return Message(payload={"role": "user"}, content=text)
 
 
 def system(text: str) -> Message:
-    return Message(role="system", content=text)
+    return Message(payload={"role": "system"}, content=text)
 
 
 def assistant(text: str) -> Message:
-    return Message(role="assistant", content=text)
+    return Message(payload={"role": "assistant"}, content=text)
 
 
 @overload
@@ -97,7 +70,7 @@ def to_request(
     temperature: float | None = ...,
     max_tokens: int | None = ...,
     stream: bool = ...,
-) -> ChatRequest: ...
+) -> Request: ...
 
 
 @overload
@@ -109,7 +82,7 @@ def to_request(
     temperature: float | None = ...,
     max_tokens: int | None = ...,
     stream: bool = ...,
-) -> ChatRequest: ...
+) -> Request: ...
 
 
 @overload
@@ -121,7 +94,7 @@ def to_request(
     temperature: float | None = ...,
     max_tokens: int | None = ...,
     stream: bool = ...,
-) -> ChatRequest: ...
+) -> Request: ...
 
 
 def to_request(
@@ -131,8 +104,8 @@ def to_request(
     temperature: float | None = None,
     max_tokens: int | None = None,
     stream: bool = False,
-) -> ChatRequest:
-    """Build a ChatRequest from a prompt.
+) -> Request:
+    """Build a Request from a prompt.
 
     - If a string is provided, it's treated as a single user message.
     - If an iterable of strings is provided, they're treated as sequential user messages.
@@ -149,7 +122,7 @@ def to_request(
     else:
         messages = [user(p) for p in prompt]
 
-    return ChatRequest(
+    return Request(
         messages=messages,
         model=model,
         temperature=temperature,
@@ -165,36 +138,17 @@ class DummyLLM(LLM):
     """
 
     @override
-    def chat(self, request: ChatRequest) -> ChatResponse:
-        return ChatResponse(
+    def chat(self, request: Request) -> Response:
+        return Response(
             id=None,
             model=request.model,
-            choices=[
-                ChatChoice(
-                    index=0,
-                    message=Message(role="assistant", content=""),
-                    finish_reason="stop",
-                )
-            ],
-            usage=Usage(),
+            choices=[Message(payload={"role": "assistant", "index": 0, "finish_reason": "stop"}, content="")],
             created=None,
         )
 
     @override
-    async def async_chat(self, request: ChatRequest) -> ChatResponse:  # pragma: no cover
+    async def async_chat(self, request: Request) -> Response:  # pragma: no cover
         return self.chat(request)
-
-    @override
-    def count_prompt_tokens(self, messages: Sequence[Message], model: str | None = None) -> int:
-        return 0
-
-    @override
-    def price_for_prompt_tokens(self, token_count: int, model: str | None = None) -> float:
-        return 0.0
-
-    @override
-    def price_for_prompt(self, messages: Sequence[Message], model: str | None = None) -> float:
-        return 0.0
 
 
 # Shared singleton instance to use as a safe default
