@@ -6,7 +6,9 @@ A small helper to tailor resumes and cover letters for specific job posts using 
 - Token replacement in LaTeX/text templates via `util/strings.py` (`%%token%%`).
 - Central defaults in `defaults.py`: `PERSON`, `EXPERIENCE`, `SKILLS (+ CONSOLIDATED)`, `LETTER_CONTENT`.
 - Assistant + LLM: fetch URL → extract text → build candidate data → generate application JSON.
-- PDF build for resume and letter (LaTeX required).
+- PDF generation: compiles LaTeX templates to PDFs in `target/autogen/` with company name.
+- Multiple LLM backends: OpenAI Chat Completions, OpenAI Responses API (GPT class).
+- Usage logging: token counts logged automatically (no tracking classes).
 
 ### Install
 - Python 3.11+
@@ -15,16 +17,19 @@ A small helper to tailor resumes and cover letters for specific job posts using 
 
 ### Setup
 1) Edit `defaults.py` to add your details and letter sections.
-2) Put templates in `resume/` and `letter/` using tokens like `%%first_name%%`, `%%company%%`.
+2) Templates in `resume/` and `letter/` use tokens like `%%FIRST_NAME%%`, `%%COMPANY%%`.
+   - Template files: `*_template.tex` (tracked in git)
+   - Generated files: `body.tex`, `info.tex`, `workexperience.tex` (gitignored)
 
 ### Quickstart
 ```python
 from assistant import Assistant
-from ml.openai import ChatGPT
+from ml.openai import OpenAI
+from ml.gpt import GPT
 
 url = "https://example.com/job-post"
-assistant = Assistant(ChatGPT())  # or Assistant() to use the dummy LLM
-result_json_str = assistant.generate_application(url)
+assistant = Assistant(OpenAI())  # or GPT() for Responses API, or DUMMY_LLM for testing
+assistant.generate_and_save_application(url)  # Generates PDFs in target/autogen/
 ```
 
 Pretty-print and save next to an HTML file you saved:
@@ -39,29 +44,31 @@ data = json.loads("result_json_str")
 ```
 
 ### CLI / scripts (`main.py`)
-- `demo_llm()` – quick demo that prints a generated letter.
-- `generate_pdfs()` – compiles LaTeX in `resume/` and `letter/`.
+- `demo_llm()` – quick demo that prints a generated application.
 - `textify_file(path)` – prints plaintext from an HTML file.
 - Logging: `setup_logging()` writes to `target/logs/app.log` and stdout.
+- PDFs automatically generated in `target/autogen/{company}_resume.pdf` and `{company}_letter.pdf`.
 
 ### Assistant API (cheatsheet)
 - `Assistant.fetch(url) -> str` – HTML.
-- `Assistant.to_text(html) -> str` – plaintext.
 - `Assistant.build_llm_data(html, include_raw_html=False) -> dict` – merges page text + your data.
-- `Assistant.generate_application(url, *, model=None, temperature=0.2, max_tokens=800, custom_prompt=None) -> str` – minified JSON string.
-- `Assistant.ask_about(question, about_url) -> str` – same as above, with your question prepended.
-- `Assistant.store_application(application: dict, out_dir=Path("target")) -> {"letter": Path, "resume": Path}` – writes `letter.txt` and `resume.txt`.
+- `Assistant.generate_application(url, *, model=None, temperature=0.2, max_tokens=2000, custom_prompt=None) -> str` – minified JSON string.
+- `Assistant.generate_and_save_application(url) -> dict[str, Path]` – generates and compiles to PDFs.
+- `Assistant.store_application(application: dict) -> dict[str, Path]` – compiles LaTeX files to PDFs in `target/autogen/`.
+- `Assistant.ask_about(question, about_url) -> str` – ask a question about a URL.
 
 ### Output schema (returned JSON string)
 ```json
 {
-  "letter": { "Intro": "...", "Why do I want to join this company?": "...", "Why should this company pick me?": "...", "Outro": "..." },
+  "details": { "company": "...", "role": "...", "recipient": "...", "city": "...", "state": "..." },
+  "letter": { "Introduction": "...", "Why do I want to join this company?": "...", "Why should this company pick me?": "...", "Closing": "..." },
   "work_experience": [ { "company": "...", "role": "...", "start": "...", "end": "...", "location": "...", "bullets": ["..."] } ],
   "skills": ["..."]
 }
 ```
 
 ### Notes
-- Keep secrets out of the repo (use env vars/local config).
-- `make_resume(...)` is a placeholder—fill in as needed.
-- LaTeX is only required if you build PDFs.
+- Keep secrets out of the repo (use `.env` file for API keys).
+- Old PDFs automatically archived to `target/autogen/old/` with timestamp.
+- LaTeX required for PDF generation (templates use altacv class for resume).
+- Token usage logged via `logging.info()` for each LLM request.
