@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-import json
 import logging
 import os
 import time
-import urllib.request
+from typing import List
+
+import requests
 try:
     import tiktoken  # type: ignore
 except Exception:  # optional dependency; used only for counting
     tiktoken = None  # type: ignore
-from dataclasses import dataclass
-from typing import Dict, Optional, Sequence, Literal, cast
+from dataclasses import dataclass, field
+from typing import Dict, Optional, cast
 
 from .llm import (
     Request,
@@ -48,9 +49,15 @@ PROMPT_RATES: Dict[str, float | Dict[str, float]] = {
 
 @dataclass
 class OpenAIConfig:
-    default_model: str = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-    api_key: Optional[str] = os.environ.get(OPENAI_API_KEY_ENV)
+    default_model: str = field(default_factory=lambda: os.environ.get("OPENAI_MODEL", "gpt-4o-mini"))
+    api_key: Optional[str] = None
     timeout: float = 60.0
+
+    def __post_init__(self) -> None:
+        if not self.api_key:
+            self.api_key = os.environ.get(OPENAI_API_KEY_ENV)
+        if not self.default_model:
+            self.default_model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
 
 class _Message(Message):
@@ -82,37 +89,55 @@ class OpenAI(LLM):
         }
 
     def build_payload(self, request: Request, model: str) -> Dict:
-        def get_msg_dict(m: Message) -> Dict[str, str]:
-            return {"role": str(m.payload.get("role", "assistant")), "content": m.content}
+        def to_content(message: Message) -> Dict[str, object]:
+            role = str(message.payload.get("role", "assistant"))
+            text = message.content or ""
+            return {
+                "role": role,
+                "content": [{"type": "input_text", "text": text}],
+            }
 
-        payload = {
+        payload: Dict[str, object] = {
             "model": model,
-            "messages": [get_msg_dict(m) for m in request.messages],
+            "input": [to_content(m) for m in request.messages],
             "temperature": request.temperature,
-            "max_tokens": request.max_tokens,
             "stream": False,
+            "text": {"format": {"type": "text"}},
         }
-        return {k: v for k, v in payload.items() if v is not None}
+        if request.max_tokens is not None:
+            payload["max_output_tokens"] = request.max_tokens
+        return {key: value for key, value in payload.items() if value is not None}
 
     def parse_response(self, response_data: Dict, model: str, start_time: int) -> Response:
-        choices = []
-        for i, ch in enumerate(response_data.get("choices", [])):
-            msg_data = ch.get("message", {})
-            msg = Message.from_dict(msg_data)
-            if msg:
-                msg.payload["index"] = i
-                msg.payload["finish_reason"] = ch.get("finish_reason")
-                choices.append(msg)
+        choices: List[Message] = []
+        outputs = response_data.get("output") or []
+        for index, item in enumerate(outputs):
+            if item.get("role") not in {"assistant", "tool"}:
+                continue
+            parts = item.get("content") or []
+            text_segments = [part.get("text", "") for part in parts if part.get("type") in {"output_text", "text"}]
+            if not text_segments:
+                continue
+            message = Message(
+                payload={"role": item.get("role", "assistant"), "index": index},
+                content="".join(text_segments),
+            )
+            finish = item.get("finish_reason") or item.get("status") or item.get("stop_reason")
+            if finish:
+                message.payload["finish_reason"] = finish
+            choices.append(message)
 
         usage_data = response_data.get("usage", {})
         if usage_data:
-            prompt_tokens = int(usage_data.get("prompt_tokens", 0))
-            completion_tokens = int(usage_data.get("completion_tokens", 0))
-            total_tokens = int(usage_data.get("total_tokens", 0))
+            prompt_tokens = int(usage_data.get("input_tokens", usage_data.get("prompt_tokens", 0)))
+            completion_tokens = int(usage_data.get("output_tokens", usage_data.get("completion_tokens", 0)))
+            total_tokens = int(usage_data.get("total_tokens", prompt_tokens + completion_tokens))
             logging.info(
                 f"OpenAI Usage - Model: {model}, Input: {prompt_tokens}, "
                 f"Output: {completion_tokens}, Total: {total_tokens}"
             )
+        if not choices:
+            logging.error("OpenAI parsed no choices from: %s", response_data)
 
         return Response(
             id=response_data.get("id"),
@@ -123,18 +148,19 @@ class OpenAI(LLM):
 
     def chat(self, request: Request) -> Response:
         model = request.model or self.config.default_model
-        url = f"{OPENAI_API_BASE}/chat/completions"
-        
+        url = f"{OPENAI_API_BASE}/responses"
+
         headers = self.make_request_headers()
         payload = self.build_payload(request, model)
-        data = json.dumps(payload).encode("utf-8")
-        
-        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
         start_time = int(time.time())
-        
-        with urllib.request.urlopen(req, timeout=self.config.timeout) as resp:
-            response_data = json.loads(resp.read().decode("utf-8"))
-            
+        response = requests.post(url, headers=headers, json=payload, timeout=self.config.timeout)
+        if response.status_code >= 400:
+            logging.error("OpenAI response %s: %s", response.status_code, response.text)
+        response.raise_for_status()
+        response_data = response.json()
+        if not response_data.get("output"):
+            logging.error("OpenAI empty output: %s", response_data)
+
         return self.parse_response(response_data, model, start_time)
 
     async def async_chat(self, request: Request) -> Response:

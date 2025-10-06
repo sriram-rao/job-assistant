@@ -1,10 +1,8 @@
 from .llm import (
     LLM,
+    Request,
+    Response,
     Message,
-    ChatRequest,
-    ChatResponse,
-    ResponseMessage,
-    Usage,
     user,
     system,
     assistant,
@@ -12,6 +10,6 @@ from .llm import (
 )
 
 from .openai import (
-    ChatGPT,
-    ChatGPTConfig,
+    OpenAI,
+    OpenAIConfig,
 )
