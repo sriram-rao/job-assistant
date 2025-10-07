@@ -13,7 +13,7 @@ from typing import cast
 from playwright.sync_api import Page, Frame, Locator
 
 
-USER_AGENT = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:142.0) Gecko/20100101 Firefox/142.0")
+USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:142.0) Gecko/20100101 Firefox/142.0"
 
 # Platform catalog: indicators + extraction rules
 PLATFORMS: dict[str, dict[str, list[str] | dict[str, str]]] = {
@@ -69,13 +69,19 @@ def sanitize_filename(name: str) -> str:
 
 def derive_base_filename(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
-    tail = Path(parsed.path).name or "index" if parsed.path and parsed.path not in ("/", "") else "index"
+    tail = (
+        Path(parsed.path).name or "index"
+        if parsed.path and parsed.path not in ("/", "")
+        else "index"
+    )
     return sanitize_filename(f"{parsed.netloc}_{tail}" if parsed.netloc else tail)
 
 
 def fetch(url: str, timeout: float = 20.0) -> tuple[bytes, str]:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with cast(HTTPResponse, urllib.request.urlopen(req, timeout=timeout)) as http_response:
+    with cast(
+        HTTPResponse, urllib.request.urlopen(req, timeout=timeout)
+    ) as http_response:
         data: bytes = http_response.read()
         info: Message = http_response.info()
         encoding: str | None = info.get_content_charset()
@@ -137,9 +143,9 @@ def find_url_with_domain(html: str, domain: str) -> str | None:
     """Find a URL with the given domain in HTML content."""
     # Try multiple patterns to match different URL formats
     patterns = [
-        rf'https?://(?:www\.)?{domain}/[\w-]+',  # Matches http(s)://domain.com/...
+        rf"https?://(?:www\.)?{domain}/[\w-]+",  # Matches http(s)://domain.com/...
         rf'"(https?://[\w.-]*{domain}[\w/%-]*)',  # Matches URLs in quotes
-        rf'url\(["\']?(https?://[\w.-]*{domain}[\w/%-]*)'  # Matches CSS url() patterns
+        rf'url\(["\']?(https?://[\w.-]*{domain}[\w/%-]*)',  # Matches CSS url() patterns
     ]
 
     for pattern in patterns:
@@ -150,7 +156,7 @@ def find_url_with_domain(html: str, domain: str) -> str | None:
         # Get the first group if it exists, otherwise get the full match
         url = match.group(1) if len(match.groups()) > 0 else match.group(0)
         # Clean up any trailing quotes or special characters
-        url = url.split('"')[0].split("'")[0].split(')')[0]
+        url = url.split('"')[0].split("'")[0].split(")")[0]
         return url
 
     return None
@@ -174,7 +180,9 @@ def placeholder_for(field: dict[str, str]) -> str:
     return "Lorem ipsum"
 
 
-def build_payload(fields: list[dict[str, str]]) -> tuple[dict[str, str], dict[str, tuple[str, bytes, str]]]:
+def build_payload(
+    fields: list[dict[str, str]],
+) -> tuple[dict[str, str], dict[str, tuple[str, bytes, str]]]:
     """
     Return (data, files) suitable for requests.post(url, data=data, files=files).
     - data: regular form fields
@@ -224,28 +232,54 @@ def to_field(element: Locator) -> dict[str, object] | None:
         or element.get_attribute("aria-label")
     )
 
-    return {
-        "name": name,
-        "type": (element.get_attribute("type") or element.evaluate("e => e.tagName.toLowerCase()")),
-        "label": element.evaluate("el => (el.labels && el.labels[0] && el.labels[0].innerText) || ''"),
-        "placeholder": element.get_attribute("placeholder"),
-        "required": (
-            element.evaluate("e => !!e.required")
-            or ((element.get_attribute("aria-required") or "").lower() == "true")
-            or element.get_attribute("required")
-        ),
-        "tag": element.evaluate("e => e.tagName.toLowerCase()"),
-        "value": (element.get_attribute("value") or element.evaluate("e => e.value")),
-        "checked": (((element.get_attribute("type") or element.evaluate("e => e.tagName.toLowerCase()")) in ("checkbox", "radio")) and element.evaluate("e => !!e.checked")),
-        "options": element.evaluate("el => el.tagName.toLowerCase()==='select' ? Array.from(el.options).map(o => ({value:o.value, label:o.label||o.textContent||'', selected:!!o.selected})) : null"),
-    } if name else None
+    return (
+        {
+            "name": name,
+            "type": (
+                element.get_attribute("type")
+                or element.evaluate("e => e.tagName.toLowerCase()")
+            ),
+            "label": element.evaluate(
+                "el => (el.labels && el.labels[0] && el.labels[0].innerText) || ''"
+            ),
+            "placeholder": element.get_attribute("placeholder"),
+            "required": (
+                element.evaluate("e => !!e.required")
+                or ((element.get_attribute("aria-required") or "").lower() == "true")
+                or element.get_attribute("required")
+            ),
+            "tag": element.evaluate("e => e.tagName.toLowerCase()"),
+            "value": (
+                element.get_attribute("value") or element.evaluate("e => e.value")
+            ),
+            "checked": (
+                (
+                    (
+                        element.get_attribute("type")
+                        or element.evaluate("e => e.tagName.toLowerCase()")
+                    )
+                    in ("checkbox", "radio")
+                )
+                and element.evaluate("e => !!e.checked")
+            ),
+            "options": element.evaluate(
+                "el => el.tagName.toLowerCase()==='select' ? Array.from(el.options).map(o => ({value:o.value, label:o.label||o.textContent||'', selected:!!o.selected})) : null"
+            ),
+        }
+        if name
+        else None
+    )
 
 
-def collect_from_scope(scope: Page | Frame, *, selector: str) -> list[dict[str, object]]:
+def collect_from_scope(
+    scope: Page | Frame, *, selector: str
+) -> list[dict[str, object]]:
     return list(filter(None, map(to_field, scope.locator(selector).all())))
 
 
-def collect_fields_from_page(page: Page, *, timeout_ms: int = 60_000) -> list[dict[str, object]]:
+def collect_fields_from_page(
+    page: Page, *, timeout_ms: int = 60_000
+) -> list[dict[str, object]]:
     wait_until_ready(page, timeout_ms=timeout_ms)
     selector = ":light(input), :light(textarea), :light(select)"
     fields: list[dict[str, object]] = []
@@ -259,13 +293,16 @@ def collect_fields_from_page(page: Page, *, timeout_ms: int = 60_000) -> list[di
 
 def parse_submit_hints_from_html(html: str, base_url: str = "") -> dict[str, object]:
     """Extract generic submit hints for SPA job pages (no <form> tags)."""
+
     def detect_platform(url: str, text: str) -> str | None:
         url = url.lower()
         text = text.lower()
         # Prefer URL/domain indicators over text tokens
         url_matches: list[tuple[int, str]] = []
         for platform, config in PLATFORMS.items():
-            indicators: list[str] | dict[str, str] = [u for u in config.get("url", []) if u in url]
+            indicators: list[str] | dict[str, str] = [
+                u for u in config.get("url", []) if u in url
+            ]
             if indicators:
                 # score by longest matching indicator to reduce false positives
                 url_matches.append((max(map(len, indicators)), platform))
@@ -288,23 +325,24 @@ def parse_submit_hints_from_html(html: str, base_url: str = "") -> dict[str, obj
     platform = detect_platform(base_url, html) or "generic"
 
     # Initialize hints with base and platform information
-    hints: dict[str, object] = {
-        "apply_page": base_url,
-        "platform": platform
-    }
+    hints: dict[str, object] = {"apply_page": base_url, "platform": platform}
 
     # Platform-specific signals (data-driven)
     extract = cast(dict[str, str], PLATFORMS.get(platform, {}).get("extract", {}))
-    hints.update({
-        key: match.group(1)
-        for key, pattern in extract.items()  # type: ignore[union-attr]
-        if (match := re.search(pattern, html, re.I))
-    })
+    hints.update(
+        {
+            key: match.group(1)
+            for key, pattern in extract.items()  # type: ignore[union-attr]
+            if (match := re.search(pattern, html, re.I))
+        }
+    )
 
     # Common API/apply paths
     hints["api_hints"] = sorted(set(find_paths(html, API_PATH_PATTERNS)))
 
     # Inline apply link
-    if (apply_match := re.search(r'href=[\"\']([^\"\']*apply[^\"\']*)[\"\']', html, re.I)):
+    if apply_match := re.search(
+        r"href=[\"\']([^\"\']*apply[^\"\']*)[\"\']", html, re.I
+    ):
         hints["apply_link"] = apply_match.group(1)
     return hints

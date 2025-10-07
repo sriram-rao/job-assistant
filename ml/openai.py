@@ -3,24 +3,18 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import List
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, cast
 
 import requests
-try:
-    import tiktoken  # type: ignore
-except Exception:  # optional dependency; used only for counting
-    tiktoken = None  # type: ignore
-from dataclasses import dataclass, field
-from typing import Dict, Optional, cast
 
 from .llm import (
-    Request,
-    Response,
     LLM,
     Message,
+    Request,
+    Response,
     Role,
 )
-
 
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
 OPENAI_API_KEY_ENV = "OPENAI_API_KEY"
