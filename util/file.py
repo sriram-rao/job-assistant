@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import html as htmlmod
 import logging
 import re
@@ -43,7 +45,7 @@ def make_letter(details: dict[str, str], letter: dict[str, str]) -> str:
     return "\n\n".join(part for part in letter_parts if part.strip())
 
 
-def make_resume(work_experience: list[dict[str, str | list[str]]], skills: list[str]) -> tuple[str, str]:
+def make_resume(work_experience: list[dict[str, str | list[str]]], details: dict[str, str | list[str]]) -> tuple[str, str]:
     work_commands = []
     for i, exp in enumerate(work_experience):
         company = exp.get("company", "")
@@ -52,30 +54,49 @@ def make_resume(work_experience: list[dict[str, str | list[str]]], skills: list[
         end = exp.get("end", "")
         location = exp.get("location", "")
         bullets = exp.get("bullets", [])
-        
+
         time_range = f"{start} - {end}" if start and end else start or end or ""
-        
+
         bullet_items = "\n".join([f"        \\item {bullet}" for bullet in bullets]) if bullets else ""
         bullets_block = f"""    {{
     \\begin{{itemize}}
 {bullet_items}
     \\end{{itemize}}
     }}""" if bullet_items else "    {}"
-        
+
         work_cmd = f"\\makework{{exp{i}}}\n    {{{company}}}\n    {{{role}}}\n    {{{time_range}}}\n    {{{location}}}\n{bullets_block}"
         work_commands.append(work_cmd)
-    
+
     workexperience_content = "\n\n".join(work_commands)
-    skills_text = ", ".join(skills)
-    
+
+    skills = details.get("skills", [])
+    languages = details.get("languages", [])
+    skills_values = (
+        [str(item).strip() for item in skills if str(item).strip()]
+        if isinstance(skills, list)
+        else ([str(skills).strip()] if str(skills).strip() else [])
+    )
+    language_values = (
+        [str(item).strip() for item in languages if str(item).strip()]
+        if isinstance(languages, list)
+        else ([str(languages).strip()] if str(languages).strip() else [])
+    )
+    deduped_languages = string.dedupe_ordered(language_values, key=lambda value: value.lower())
+    skills_text = ", ".join(skills_values)
+    languages_text = ", ".join(deduped_languages)
+    tagline_raw = str(details.get("tagline", ""))
+    tagline = string.strip_inline_markdown(tagline_raw)
+
     workexp_content = replace("workexperience_template.tex", {
         "WORK_EXPERIENCE": workexperience_content,
     })
-    
+
     info_content = replace("resume/info_template.tex", {
-        "SKILLS": skills_text
+        "SKILLS": skills_text,
+        "LANGUAGES": languages_text,
+        "tagline": tagline
     })
-    
+
     return workexp_content, info_content
 
 
@@ -90,11 +111,11 @@ def generate_letter_files(details: dict[str, str], letter: dict[str, str]) -> No
     string.write_to_file(letter_dir / "info.tex", letter_info_content)
 
 
-def generate_resume_files(work_experience: list[dict[str, str | list[str]]], skills: list[str]) -> None:
+def generate_resume_files(work_experience: list[dict[str, str | list[str]]], details: dict[str, str | list[str]]) -> None:
     """Generate and write resume LaTeX files."""
     resume_dir = Path("resume")
-    
-    workexp_content, resume_info_content = make_resume(work_experience, skills)
+
+    workexp_content, resume_info_content = make_resume(work_experience, details)
     string.write_to_file(resume_dir / "workexperience.tex", workexp_content)
     string.write_to_file(resume_dir / "info.tex", resume_info_content)
 

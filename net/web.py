@@ -112,11 +112,29 @@ def save_html_bytes(target: Path, base: str, raw: bytes) -> Path:
 
 
 def get_html(url: str, timeout: float = 20.0) -> str:
-    """Fetch a URL and return decoded HTML string."""
-    raw, encoding = fetch(url, timeout=timeout)
+    """Fetch a URL or read a file path and return decoded HTML string."""
+    # Check if it's an HTTP/HTTPS URL
+    if url.startswith(("http://", "https://")):
+        raw, encoding = fetch(url, timeout=timeout)
+        try:
+            return raw.decode(encoding or "utf-8", errors="replace")
+        except Exception:
+            return raw.decode("utf-8", errors="replace")
+
+    # Handle file:// URLs by removing the prefix and decoding
+    if url.startswith("file://"):
+        url = urllib.parse.unquote(url[7:])
+
+    # Treat as a local file path
+    path = Path(url)
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {path}")
+
     try:
-        return raw.decode(encoding or "utf-8", errors="replace")
+        return path.read_text(encoding="utf-8", errors="replace")
     except Exception:
+        # Try reading as bytes and decode
+        raw = path.read_bytes()
         return raw.decode("utf-8", errors="replace")
 
 

@@ -320,11 +320,11 @@
     % \medskip
     % \vspace{2mm}
     {\personalinfofont\@personalinfo\par}
-    \smallskip
-    \centering{\taglinefont\color{tagline}\@tagline\par}
+    \medskip\smallskip
+    {\RaggedRight\rightskip=0pt plus 3em\relax\taglinefont\color{tagline}\@tagline\par}
     \end{minipage}\hfill%
     \altacv@right@photos\par%
-  \endgroup\medskip\smallskip
+  \endgroup\smallskip
   
 }
 

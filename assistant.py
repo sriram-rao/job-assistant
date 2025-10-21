@@ -2,7 +2,7 @@ import json
 import logging
 import threading
 from pathlib import Path
-from typing import Any, NotRequired, TypedDict, cast
+from typing import NotRequired, TypedDict, cast
 
 from defaults import EXPERIENCE, LETTER_CONTENT, PERSON, SKILLS, SKILLS_CONSOLIDATED
 from util.file import (
@@ -61,7 +61,10 @@ class Assistant:
         )
         self.log.info("Calling LLM.chat, model=%s", model or "<default>")
         res = self.llm.chat(req)
-        return res.choices[0].content if res.choices else "No response"
+        if not res.choices:
+            self.log.error("LLM returned no content, see logs for provider call details")
+            raise RuntimeError("LLM returned no choices/content")
+        return res.choices[0].content
 
     async def schedule_ask(
         self,
@@ -76,7 +79,10 @@ class Assistant:
         )
         self.log.info("Calling LLM.async_chat, model=%s", model or "<default>")
         res = await self.llm.async_chat(req)
-        return res.choices[0].content if res.choices else "No response"
+        if not res.choices:
+            self.log.error("Async LLM call returned no content, see logs for provider call details")
+            raise RuntimeError("LLM returned no choices/content")
+        return res.choices[0].content
 
     def build_llm_data(self, html: str, *, include_raw_html: bool = False) -> LLMData:
         skills_all: list[str] = list(
@@ -109,9 +115,14 @@ class Assistant:
         generate_letter_files(details, cast(dict[str, str], application["letter"]))
 
         self.log.info("Generating resume files")
+        # Merge skills and languages into details
+        details_with_lists = cast(dict[str, str | list[str]], details.copy())
+        details_with_lists["skills"] = cast(list[str], application.get("skills", []))
+        details_with_lists["languages"] = cast(list[str], application.get("languages", []))
+
         generate_resume_files(
             cast(list[dict[str, str | list[str]]], application["work_experience"]),
-            cast(list[str], application["skills"]),
+            details_with_lists,
         )
 
         target_dir = Path("target/autogen")
@@ -141,7 +152,7 @@ class Assistant:
         *,
         model: str = "",
         temperature: float = 0.2,
-        max_tokens: int = 2000,
+        max_tokens: int = 4000,
         custom_prompt: str = "",
     ) -> str:
         prompt: str = "\n".join(
@@ -157,8 +168,23 @@ class Assistant:
     ) -> dict[str, Path]:
         """Generate application from URL and save to disk."""
         self.log.info("Generating application JSON")
+        raw_response = self.generate_application(url)
+        self.log.info(f"Raw LLM response (first 500 chars): {raw_response[:500]}")
+
+        # Strip reasoning output (for models like GPT-OSS, DeepSeek-R1)
+        import re
+        # Remove <think>...</think> tags
+        raw_response = re.sub(r'<think>.*?</think>', '', raw_response, flags=re.DOTALL)
+        # Strip markdown code blocks if present
+        json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', raw_response, re.DOTALL)
+        if json_match:
+            raw_response = json_match.group(1)
+            self.log.info("Extracted JSON from markdown code block")
+        # Clean up any remaining whitespace
+        raw_response = raw_response.strip()
+
         application: dict[str, object] = cast(
-            dict[str, object], json.loads(self.generate_application(url))
+            dict[str, object], json.loads(raw_response)
         )
         self.log.info("Storing application to disk")
         return self.store_application(application, out_dir)
@@ -167,7 +193,7 @@ class Assistant:
         self.log.info("Asking assistant a question")
         return self.ask(
             self.get_context(about_url) + "\n" + question,
-            model="gpt-5-mini",
+            model="gpt-4o-mini",
             temperature=1,
             max_tokens=3000,
         )
@@ -188,7 +214,8 @@ class Assistant:
             f"'details': {self.schema['details_schema']},"
             f"'letter': {self.schema['letter_schema']},"
             f"'work_experience':[{self.schema['work_experience_schema']}],"
-            f"'skills':{self.schema['skills_schema']}"
+            f"'skills':{self.schema['skills_schema']},"
+            f"'languages':{self.schema['languages_schema']}"
             "}"
         )
 
@@ -200,27 +227,41 @@ class Assistant:
             "You are given candidate data and plaintext job description to draft output.\n"
             "Make all content as specific to the job description and the company as possible.\n"
             "You are allowed to use online facts about the company. Facts only. \n"
-            "You are strictly not allowed to use any other external resources (e.g., Google Docs, Word, ...) "
-            "nor any external tools (e.g., Google Sheets, Word, ...) "
-            "nor any external libraries (e.g., Pandas, Numpy, ...).\n"
+            "Pick 5-ish skills mentioned in the job description that are close to skills in the input candidate's list and place them first in the output returned\n"
             f"Candidate: {data['person']}\n"
             f"Experience: {data['experience']}\n"
             f"Skills pool: {', '.join(data['skills'])}\n"
+            f"Reference tagline (style guide): {data['person'].get('tagline', '')}\n"
             f"Reference letter content (structure/length guide):\n{data['cover_letter']}\n\n"
             f"Job description (plaintext):\n{data['page_text']}\n\n"
         )
 
     requirement: dict[str, str] = {
+        "details": (
+            "- Generate a tailored tagline (4-5 sentences) highlighting strengths including technical expertise for this role.\n"
+            "- Match the style of the reference tagline: professional, concise, without using personal pronouns or the person's name.\n"
+            "- Feel free to mention company names from the candidate's experience.\n"
+        ),
         "letter": (
             f"- Cover letter must have exactly these 4 keys (in order): {','.join(LETTER_CONTENT.keys())}. The content is just a guideline."
             f"- Match the reference letter's tone. Keep the number of words within 25% of the reference letter's.\n"
+            f"- Use the exact role name from the job posting when referring to the position.\n"
         ),
         "work_experience": (
             "- Work experience must be r\u00e9sum\u00e9-ready (2-5 concise bullets per role).\n"
             "- Use strong action verbs, quantify result/impact.\n"
-            "- Use keywords from the job text where applicable, especially in work-experience bullets; prefer exact matches.\n"
+            "- Use bolded keywords from the job text where applicable, especially in work-experience bullets; prefer exact matches.\n"
+            "- Match language and phrasing with job description where possible.\n"
         ),
-        "skills": "- Choose 10–15 skills related to the job; prefer skills in the job text.\n",
+        "skills": (
+            "- Choose 10–15 skills related to the job; prefer skills in the job text.\n"
+            "- Order skills based on relevance to the job description (most relevant first).\n"
+        ),
+        "languages": (
+            "- Choose 8–12 programming languages from the skills pool based on job relevance.\n"
+            "- Order languages based on relevance to the job description (most relevant first).\n"
+            "- Only include languages that are actual programming languages (e.g., Python, Java, C++, not frameworks or tools).\n"
+        ),
         "generic": "- Keep first-person voice, concise, professional.",
         "output": (
             "Output schema: return ONLY minified JSON (no markdown, no commentary).\n"
@@ -235,5 +276,6 @@ class Assistant:
         "work_experience_schema": '{"company":"...","role":"...","start":"...","end":"...",'
         + '"location":"...","bullets":["..."]}',
         "skills_schema": '["..."]',
-        "details_schema": '{"company":"...","role":"...","recipient":"...","city":"...","state":"..."}',
+        "languages_schema": '["..."]',
+        "details_schema": '{"company":"...","role":"...","recipient":"...","city":"...","state":"...","tagline":"..."}',
     }

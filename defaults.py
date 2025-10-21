@@ -192,8 +192,8 @@ SKILLS_CONSOLIDATED: dict[str, list[str]] = {
 LETTER_CONTENT: dict[str, str] = {
     "Introduction": (
         "I am a software engineer with prior experience at Microsoft and the University of California, Irvine. "
-        "I am interested in the member of technical staff roles at {company}. "
-        "I am an excellent choice for these positions."
+        "I am interested in the {role} role at {company}. "
+        "I am an excellent choice for this position."
     ),
     "Why do I want to join this company?": (
         "Having worked at Microsoft earlier, I reminisce about its inspiring atmosphere. "

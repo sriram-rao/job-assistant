@@ -94,7 +94,6 @@ class OpenAI(LLM):
         payload: Dict[str, object] = {
             "model": model,
             "input": [to_content(m) for m in request.messages],
-            "temperature": request.temperature,
             "stream": False,
             "text": {"format": {"type": "text"}},
         }

@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 from assistant import Assistant
 from ml.openai import OpenAI
+from ml.openai_compatible import OpenAICompatible
 from util.tex import compile_to_pdf
 
 _ = load_dotenv()
@@ -104,7 +105,7 @@ def generate_application_from_url(
         "About to call Assistant.generate_and_save_application (LLM call + file IO)..."
     )
 
-    output_paths = Assistant(OpenAI()).generate_and_save_application(url, output_dir)
+    output_paths = Assistant(OpenAICompatible()).generate_and_save_application(url, output_dir)
 
     logging.info(f"Application saved to: {output_paths}")
     return output_paths
@@ -136,10 +137,10 @@ if __name__ == "__main__":
 
     if args.ask or args.question is not None:
         prompt = (
-            args.question or "Write a cover letter showing my suitability for the role"
+            args.question if args.question else "Write a cover letter showing my suitability for the role"
         )
         logging.info("About to ask assistant (LLM call) with provided prompt")
-        print(Assistant(OpenAI()).ask_about(prompt, args.url))
+        print(Assistant(OpenAICompatible()).ask_about(prompt, args.url))
         logging.info("Assistant completed question response")
     elif args.url:
         logging.info("About to generate application for URL: %s", args.url)
