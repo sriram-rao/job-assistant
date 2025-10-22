@@ -102,7 +102,7 @@ class OpenAI(LLM):
         max_tokens = request.max_tokens or RESPONSES_MAX_OUTPUT_TOKENS
         payload["max_output_tokens"] = max_tokens
         if request.reasoning_effort:
-            payload["reasoning_effort"] = request.reasoning_effort
+            payload["reasoning"] = {"effort": request.reasoning_effort}
         return {key: value for key, value in payload.items() if value is not None}
 
     def parse_response(self, response_data: Dict, model: str, start_time: int) -> Response:
