@@ -4,20 +4,22 @@ A small helper to tailor resumes and cover letters for specific job posts using 
 
 ### Features
 - Token replacement in LaTeX/text templates via `util/strings.py` (`%%token%%`).
-- Central defaults in `defaults.py`: `PERSON`, `EXPERIENCE`, `SKILLS (+ CONSOLIDATED)`, `LETTER_CONTENT`.
+- Central defaults in `defaults.py`: `PERSON`, `EXPERIENCE`, `SKILLS`, `LETTER_CONTENT`.
 - Assistant + LLM: fetch URL → extract text → build candidate data → generate application JSON.
 - PDF generation: compiles LaTeX templates to PDFs in `target/autogen/` with company name.
-- Multiple LLM backends: OpenAI Chat Completions, OpenAI Responses API (GPT class).
+- Responses API client (`ml.openai.OpenAI`) by default; Chat Completions (`ml.openai_compatible.OpenAICompatible`) still available.
 - Usage logging: token counts logged automatically (no tracking classes).
 
 ### Install
 - Python 3.11+
 - Optional: LaTeX (TeX Live/MiKTeX) for PDFs
 - Install deps as needed for your LLM client (see `ml/`).
+- Optional override: pass `OpenAIConfig(default_model="...", timeout=...)` when constructing `OpenAI`.
 
 ### Setup
-1) Edit `defaults.py` to add your details and letter sections.
-2) Templates in `resume/` and `letter/` use tokens like `%%FIRST_NAME%%`, `%%COMPANY%%`.
+1) Adjust `settings.py` for default model, timeout, and max output tokens.
+2) Edit `defaults.py` to add your details and letter sections.
+3) Templates in `resume/` and `letter/` use tokens like `%%FIRST_NAME%%`, `%%COMPANY%%`.
    - Template files: `*_template.tex` (tracked in git)
    - Generated files: `body.tex`, `info.tex`, `workexperience.tex` (gitignored)
 
@@ -25,10 +27,9 @@ A small helper to tailor resumes and cover letters for specific job posts using 
 ```python
 from assistant import Assistant
 from ml.openai import OpenAI
-from ml.gpt import GPT
 
 url = "https://example.com/job-post"
-assistant = Assistant(OpenAI())  # or GPT() for Responses API, or DUMMY_LLM for testing
+assistant = Assistant(OpenAI())  # Responses API default
 assistant.generate_and_save_application(url)  # Generates PDFs in target/autogen/
 ```
 
@@ -69,6 +70,7 @@ data = json.loads("result_json_str")
 
 ### Notes
 - Keep secrets out of the repo (use `.env` file for API keys).
+- Last LLM raw response is stored in `target/logs/last_llm_response.txt`; comment the read/write helper calls in `assistant.py` to control reuse.
 - Old PDFs automatically archived to `target/autogen/old/` with timestamp.
 - LaTeX required for PDF generation (templates use altacv class for resume).
 - Token usage logged via `logging.info()` for each LLM request.

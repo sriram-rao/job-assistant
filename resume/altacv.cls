@@ -179,17 +179,17 @@
   \IfNoValueTF{#3}{%
     \mbox{\textcolor{accent}%
     {\BeginAccSupp{method=escape,ActualText={\detokenize{#1}:}}\normalfont #1\EndAccSupp{}}%
-    ~\utffriendlydetokenize{#2}\hspace{2em}}%
+    ~\utffriendlydetokenize{#2}\hspace{1em}}%
   }{%
      \if@withhyper%
       \mbox{\textcolor{accent}%
       {\BeginAccSupp{method=escape,ActualText={\detokenize{#1}:}}\normalfont #1\EndAccSupp{}}%
-      ~\href{#3}{\utffriendlydetokenize{#2}}\hspace{1.5em}}
+      ~\href{#3}{\utffriendlydetokenize{#2}}\hspace{1em}}
      \else%
        \ClassWarning{Please specify [withhyper] option to enable hyperlinks. Printing out full hyperlink prefix #1 for now.}%
       \mbox{\textcolor{accent}
       {\BeginAccSupp{method=escape,ActualText={\detokenize{#1}:}}\normalfont #1\EndAccSupp{}}%
-      ~{\utffriendlydetokenize{#3#2}}\hspace{2em}}%
+      ~{\utffriendlydetokenize{#3#2}}\hspace{1em}}%
      \fi%
   }%
 }%
@@ -232,11 +232,11 @@
 \newcommand{\name}[1]{\def\@name{#1}}
 \newcommand{\tagline}[1]{\def\@tagline{#1}}
 \newcommand{\personalinfo}[1]{\def\@personalinfo{#1}}
-\NewInfoField{phone}{\faPhone}[tel:]
-\NewInfoField{email}{\faAt}[mailto:]
-\NewInfoField{mailaddress}{\faEnvelope}
-\NewInfoField{website}{\faGlobe}[https://www.]
-\NewInfoField{homepage}{\faGlobe}[https://]
+\NewInfoField{phone}{\,\textbullet\,}[tel:]
+\NewInfoField{email}{\,\textbullet\,}[mailto:]
+\NewInfoField{mailaddress}{\,\textbullet\,}
+\NewInfoField{website}{\,\textbullet\,}[https://www.]
+\NewInfoField{homepage}{\,\textbullet\,}[https://]
 \NewInfoField{twitter}{\faTwitter}[https://twitter.com/]
 % v1.7.2 twitter.com is now X.com; v1.7.3 but only use the new icon if it's been defined
 \ifcsdef{simpleicon@xicon}
@@ -244,8 +244,8 @@
  {\let\xtwitter\twitter%
   \pretocmd{\xtwitter}{\ClassWarning{altacv}{You tried to use \string\xtwitter, but the new X icon isn't available. Please ensure you have updated the `simpleicons' package. Falling back to \string\twitter\space icon for now}}{}{}%
  }
-\NewInfoField{linkedin}{\faLinkedin}[https://linkedin.com/in/][linkedin.com/in/]
-\NewInfoField{github}{\faGithub}[https://github.com/][github.com/]
+\NewInfoField{linkedin}{\,\textbullet\,}[https://linkedin.com/in/][linkedin.com/in/]
+\NewInfoField{github}{\,\textbullet\,}[https://github.com/][github.com/]
 % v1.7.3 Backward compatibility for ORCiD icon
 \ifdef{\faOrcid}{
   \NewInfoField{orcid}{\faOrcid}[https://orcid.org/]
@@ -257,7 +257,7 @@
     \NewInfoField{orcid}{\fbox{O?}\space}[https://orcid.org/]
   \fi
 }
-\NewInfoField{location}{\cvLocationMarker}
+\NewInfoField{location}{ - }
 
 % v1.2: Support for multiple photos
 \newlength{\altacv@photos@width}
@@ -302,7 +302,7 @@
 
 \newcommand{\namefont}{\Huge\bfseries}
 \newcommand{\taglinefont}{\normalsize}
-\newcommand{\personalinfofont}{\footnotesize}
+\newcommand{\personalinfofont}{\small}
 \newcommand{\cvsectionfont}{\Large\bfseries}
 \newcommand{\cvsubsectionfont}{\large}
 
@@ -310,22 +310,22 @@
   \begingroup
     \altacv@left@photos\hfill%
     \begin{minipage}{\dimexpr\linewidth-\altacv@photos@width}%
-    \raggedright% 
-    \centering{\namefont\color{name}% 
+    \raggedright%
+    \centering{\namefont\color{name}%
     \MakeUppercase{\@name}}\par
-    \smallskip
-    
-    % \centering{\namefont\color{name}% 
+    \bigskip
+
+    % \centering{\namefont\color{name}%
     % \MakeUppercase{\@name}\par}
     % \medskip
     % \vspace{2mm}
-    {\personalinfofont\@personalinfo\par}
-    \medskip\smallskip
-    {\RaggedRight\rightskip=0pt plus 3em\relax\taglinefont\color{tagline}\@tagline\par}
+    {\centering\personalinfofont\@personalinfo\par}
+    \bigskip
+    {\RaggedRight\rightskip=0pt plus 3em\relax\taglinefont\color{tagline}\linespread{1.3}\selectfont\@tagline\par}
     \end{minipage}\hfill%
     \altacv@right@photos\par%
   \endgroup\smallskip
-  
+
 }
 
 \renewenvironment{quote}{\color{accent}\itshape\large}{\par}
@@ -333,8 +333,8 @@
 \newcommand{\cvsection}[2][]{%
   \nointerlineskip\bigskip%  %% bugfix in v1.6.2
   \ifstrequal{#1}{}{}{\marginpar{\vspace*{\dimexpr1pt-\baselineskip}\raggedright\input{#1}}}%
-  {\color{heading}\cvsectionfont\MakeUppercase{#2}}\\[-1ex]%
-  {\color{headingrule}\rule{\linewidth}{2pt}\par}\medskip
+  {\color{heading}\cvsectionfont\MakeUppercase{#2}}\par%
+  \medskip
 }
 
 \newcommand{\cvsubsection}[1]{%
@@ -353,12 +353,12 @@
   \smallskip
   \ifstrequal{#3}{}{}{%
     {\small\makebox[0.5\linewidth][l]%
-      {\BeginAccSupp{method=pdfstringdef,ActualText={\datename:}}\color{accent}\cvDateMarker\EndAccSupp{}%
+      {\BeginAccSupp{method=pdfstringdef,ActualText={\datename:}}\color{accent} - \EndAccSupp{}%
       ~#3}%
     }}%
   \ifstrequal{#4}{}{}{%
     {\small\makebox[0.5\linewidth][l]%
-    {\BeginAccSupp{method=pdfstringdef,ActualText={\locationname:}}\color{accent}\cvLocationMarker\EndAccSupp{}%
+    {\BeginAccSupp{method=pdfstringdef,ActualText={\locationname:}}\color{accent} - \EndAccSupp{}%
         ~#4}%
     }}\par
   \medskip\normalsize
@@ -373,12 +373,12 @@
   \smallskip
   \ifstrequal{#3}{}{}{%
     {\small\makebox[0.8\linewidth][l]%
-      {\BeginAccSupp{method=pdfstringdef,ActualText={\datename:}}\color{accent}\cvDateMarker\EndAccSupp{}%
+      {\BeginAccSupp{method=pdfstringdef,ActualText={\datename:}}\color{accent} - \EndAccSupp{}%
       ~#3}%
     }}%
   \ifstrequal{#4}{}{}{%
     {\small\makebox[0.5\linewidth][l]%
-    {\BeginAccSupp{method=pdfstringdef,ActualText={\locationname:}}\color{accent}\cvLocationMarker\EndAccSupp{}%
+    {\BeginAccSupp{method=pdfstringdef,ActualText={\locationname:}}\color{accent} - \EndAccSupp{}%
         ~#4}%
     }}\par
   \medskip\normalsize

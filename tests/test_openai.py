@@ -3,6 +3,7 @@
 
 import os
 import sys
+from settings import DEFAULT_OPENAI_MODEL
 from ml.openai import ChatGPT, ChatRequest
 from ml.llm import user
 
@@ -16,7 +17,7 @@ def test_openai():
         client = ChatGPT()
         response = client.chat(ChatRequest(
             messages=[user("Say 'Hello, world!'")],
-            model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+            model=DEFAULT_OPENAI_MODEL
         ))
         
         if not response.choices:

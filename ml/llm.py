@@ -21,6 +21,7 @@ class Request:
     temperature: float | None = None
     max_tokens: int | None = None
     stream: bool = False
+    reasoning_effort: str | None = None
 
 
 @dataclass(slots=True)
@@ -70,6 +71,7 @@ def to_request(
     temperature: float | None = ...,
     max_tokens: int | None = ...,
     stream: bool = ...,
+    reasoning_effort: str | None = ...,
 ) -> Request: ...
 
 
@@ -82,6 +84,7 @@ def to_request(
     temperature: float | None = ...,
     max_tokens: int | None = ...,
     stream: bool = ...,
+    reasoning_effort: str | None = ...,
 ) -> Request: ...
 
 
@@ -94,6 +97,7 @@ def to_request(
     temperature: float | None = ...,
     max_tokens: int | None = ...,
     stream: bool = ...,
+    reasoning_effort: str | None = ...,
 ) -> Request: ...
 
 
@@ -104,6 +108,7 @@ def to_request(
     temperature: float | None = None,
     max_tokens: int | None = None,
     stream: bool = False,
+    reasoning_effort: str | None = None,
 ) -> Request:
     """Build a Request from a prompt.
 
@@ -128,6 +133,7 @@ def to_request(
         temperature=temperature,
         max_tokens=max_tokens,
         stream=stream,
+        reasoning_effort=reasoning_effort,
     )
 
 

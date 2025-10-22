@@ -62,7 +62,7 @@
 \definecolor{redcurrant}{HTML}{A03D41}
 
 \colorlet{name}{black}
-\colorlet{tagline}{mediumgrey}
+\colorlet{tagline}{softblack}
 \colorlet{heading}{charcoal}
 \colorlet{headingrule}{softgrey}
 % \colorlet{subheading}{PastelRed}
@@ -165,7 +165,6 @@
 % \fontdimen2\font=\origiwspc% (original) inter word space
 % \fontdimen3\font=0.1em% inter word stretch
 \fontsize{9}{15}\selectfont%
-\vspace{-2mm}
 \hyphenchar\font=-1
 \sloppy
 % Don't overuse these \cvtag boxes — they're just eye-candies and not essential. If something doesn't fit on a single line, it probably works better as part of an itemized list (probably inlined itemized list), or just as a comma-separated list of strengths.
@@ -174,48 +173,43 @@
 % Either remove the ragged2e option; or 
 % add \LaTeXraggedright in the paragraph for these \cvtag
 {
-\begin{paracol}{2}
 \cvtagsingle{Languages}\newline
 \mylangs
-% \vspace{1mm}
 
-% \vspace{-2mm}
-
-\switchcolumn
-% \divider
+\medskip
 
 \cvtagsingle{Technologies}\newline
 \myskills
-\end{paracol}
 }
 
-\vspace{-1mm}
+\bigskip
 \cvsection{Experience}
 % \hfill \cvtag{Industry}
 \cveventonecolumn{\titlegsr}{\workgsr}{\timegsr}{\placegsr}
 \detailgsr
-\divider
+\medskip
 
 \cveventonecolumn{\titledremio}{\workdremio}{\timedremio}{\placedremio}
-\detaildremio 
-\divider
+\detaildremio
+\medskip
 
 \cveventonecolumn{\titlemicrosoft}{\workmicrosoft}{\timemicrosoft}{\placemicrosoft}
-\detailmicrosoft 
-\divider
+\detailmicrosoft
+\medskip
 
 \cveventonecolumn{\titleinternmicrosoft}{\workinternmicrosoft}{\timeinternmicrosoft}{\placeinternmicrosoft}
-\detailinternmicrosoft 
-\divider
+\detailinternmicrosoft
+\medskip
 
 \medskip
 
-\hfill \cvtag{Academia}
+\subsubsection*{Academia}
 
-% \vspace{-5mm}\cvevent{\titledrexel}{\workdrexel}{\timedrexel}{\placedrexel}
-% \detaildrexel
-% \divider
-\vspace{-5mm}
+\smallskip
+\cveventonecolumn{\titledrexel}{\workdrexel}{\timedrexel}{\placedrexel}
+\detaildrexel
+\medskip
+
 \cveventonecolumn{\titleta}{\workta}{\timeta}{\placeta}
 \detailta
 
@@ -233,22 +227,20 @@
 
 
 
-% \vspace{2mm}
+\bigskip
 \cvsection{Education}
 \normalsize
 
-\cvevent{\titlemscs}{\workmscs}{\timemscs%
-    \hspace{1cm}{\cvLocationMarker~\placemscs}}{}%
+\cveventonecolumn{\titlemscs}{\workmscs}{\timemscs}{\placemscs}
 
-\divider
+\medskip
 
-\cvevent{\titlephd}{\workphd}{\timephd%
-    \hspace{1cm}{\cvLocationMarker~\placephd}}{}%
+\cveventonecolumn{\titlephd}{\workphd}{\timephd}{\placephd}
 \detailphd
 
-\divider
+\medskip
 
-\cvevent{\titlebtech}{\workbtech}{\timebtech\hspace{1cm}{\cvLocationMarker~\placebtech}}{}%
+\cveventonecolumn{\titlebtech}{\workbtech}{\timebtech}{\placebtech}
 
 \bigskip
 

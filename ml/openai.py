@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, cast
 
 import requests
+
+from settings import OPENAI_MODEL, OPENAI_TIMEOUT, RESPONSES_MAX_OUTPUT_TOKENS
 
 from .llm import (
     LLM,
@@ -43,15 +45,15 @@ PROMPT_RATES: Dict[str, float | Dict[str, float]] = {
 
 @dataclass
 class OpenAIConfig:
-    default_model: str = field(default_factory=lambda: os.environ.get("OPENAI_MODEL", "gpt-4o-mini"))
+    default_model: str = OPENAI_MODEL
     api_key: Optional[str] = None
-    timeout: float = 60.0
+    timeout: float = OPENAI_TIMEOUT
 
     def __post_init__(self) -> None:
         if not self.api_key:
             self.api_key = os.environ.get(OPENAI_API_KEY_ENV)
         if not self.default_model:
-            self.default_model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+            self.default_model = OPENAI_MODEL
 
 
 class _Message(Message):
@@ -97,22 +99,35 @@ class OpenAI(LLM):
             "stream": False,
             "text": {"format": {"type": "text"}},
         }
-        if request.max_tokens is not None:
-            payload["max_output_tokens"] = request.max_tokens
+        max_tokens = request.max_tokens or RESPONSES_MAX_OUTPUT_TOKENS
+        payload["max_output_tokens"] = max_tokens
+        if request.reasoning_effort:
+            payload["reasoning_effort"] = request.reasoning_effort
         return {key: value for key, value in payload.items() if value is not None}
 
     def parse_response(self, response_data: Dict, model: str, start_time: int) -> Response:
         choices: List[Message] = []
         outputs = response_data.get("output") or []
         for index, item in enumerate(outputs):
-            if item.get("role") not in {"assistant", "tool"}:
+            role = item.get("role")
+            if not role and item.get("type") != "message":
                 continue
             parts = item.get("content") or []
-            text_segments = [part.get("text", "") for part in parts if part.get("type") in {"output_text", "text"}]
+            text_segments = [
+                part.get("text", "")
+                for part in parts
+                if isinstance(part, dict) and part.get("type") in {"output_text", "text"}
+            ]
+            if not text_segments and isinstance(parts, list):
+                text_segments = [
+                    str(part)
+                    for part in parts
+                    if isinstance(part, str)
+                ]
             if not text_segments:
                 continue
             message = Message(
-                payload={"role": item.get("role", "assistant"), "index": index},
+                payload={"role": role or "assistant", "index": index},
                 content="".join(text_segments),
             )
             finish = item.get("finish_reason") or item.get("status") or item.get("stop_reason")
@@ -130,7 +145,16 @@ class OpenAI(LLM):
                 f"Output: {completion_tokens}, Total: {total_tokens}"
             )
         if not choices:
-            logging.error("OpenAI parsed no choices from: %s", response_data)
+            fallback = response_data.get("output_text")
+            if isinstance(fallback, str) and fallback.strip():
+                choices.append(
+                    Message(
+                        payload={"role": "assistant", "index": 0, "finish_reason": response_data.get("status")},
+                        content=fallback.strip(),
+                    )
+                )
+            else:
+                logging.error("OpenAI parsed no choices from: %s", response_data)
 
         return Response(
             id=response_data.get("id"),

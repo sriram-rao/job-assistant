@@ -8,6 +8,8 @@ from typing import Dict, List, Optional, cast
 
 import requests
 
+from settings import DEFAULT_OPENAI_MODEL
+
 from .llm import (
     LLM,
     Message,
@@ -18,14 +20,14 @@ from .llm import (
 
 @dataclass
 class OpenAICompatibleConfig:
-    default_model: str = field(default_factory=lambda: os.environ.get("OPENAI_MODEL", "gpt-4o-mini"))
+    default_model: str = DEFAULT_OPENAI_MODEL
     api_base: str = field(default_factory=lambda: os.environ.get("OPENAI_API_BASE", "http://localhost:11434/v1"))
     api_key: Optional[str] = None
     timeout: float = 120.0
 
     def __post_init__(self) -> None:
         if not self.default_model:
-            self.default_model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+            self.default_model = DEFAULT_OPENAI_MODEL
         if not self.api_base:
             self.api_base = os.environ.get("OPENAI_API_BASE", "http://localhost:11434/v1")
         if not self.api_key:
@@ -53,7 +55,7 @@ Message = _Message
 class OpenAICompatible(LLM):
     # Model-specific parameter configurations
     GPT5_PARAMS = {
-        "tokens_param": "max_completion_tokens",  # GPT-5 requires this
+        "tokens_param": "max_completion_tokens",  # GPT-5 uses max_completion_tokens
         "supports_temperature": False,  # GPT-5 only supports default temp=1
     }
 
@@ -97,23 +99,45 @@ class OpenAICompatible(LLM):
         elif request.temperature is not None and not params["supports_temperature"]:
             logging.info(f"Temperature parameter not supported for {model}, ignoring requested value {request.temperature}")
 
-        # Add tokens with correct parameter name
-        payload[params["tokens_param"]] = request.max_tokens or 4000
+        max_tokens = request.max_tokens
+        if max_tokens is None:
+            max_tokens = 16000 if model.startswith("gpt-5") else 4000
+        payload[params["tokens_param"]] = max_tokens
 
         return {key: value for key, value in payload.items() if value is not None}
 
     def parse_response(self, response_data: Dict, model: str, start_time: int) -> Response:
         choices: List[Message] = []
 
+        def to_text(content: object) -> str:
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                parts = []
+                for item in content:
+                    if isinstance(item, dict):
+                        text = item.get("text") or item.get("content")
+                        if isinstance(text, str):
+                            parts.append(text)
+                return "".join(parts)
+            if isinstance(content, dict):
+                text = content.get("text")
+                if isinstance(text, str):
+                    return text
+                inner = content.get("content")
+                if isinstance(inner, (str, list, dict)):
+                    return to_text(inner)
+            return ""
+
         # Standard OpenAI chat completions format
         choices_data = response_data.get("choices", [])
         for choice in choices_data:
             message_data = choice.get("message", {})
-            content = message_data.get("content", "")
+            content = to_text(message_data.get("content"))
 
             # For models with reasoning (like gpt-oss), check reasoning field if content is empty
             if not content and "reasoning" in message_data:
-                content = message_data.get("reasoning", "")
+                content = to_text(message_data.get("reasoning"))
 
             if content:
                 message = Message(

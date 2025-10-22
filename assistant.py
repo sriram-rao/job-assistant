@@ -1,10 +1,12 @@
 import json
 import logging
+import re
 import threading
 from pathlib import Path
 from typing import NotRequired, TypedDict, cast
 
-from defaults import EXPERIENCE, LETTER_CONTENT, PERSON, SKILLS, SKILLS_CONSOLIDATED
+from defaults import EXPERIENCE, LETTER_CONTENT, PERSON, SKILLS
+from settings import CONTEXT_INSTRUCTIONS, FULL_SCHEMA, OPENAI_MODEL, REASONING_EFFORT, REQUIREMENTS, RESPONSES_MAX_OUTPUT_TOKENS
 from util.file import (
     archive_old_pdfs,
     compile_pdfs,
@@ -15,6 +17,10 @@ from util.file import (
 )
 from ml.llm import DUMMY_LLM, LLM, to_request
 from net.web import get_html
+
+
+LLM_LOG_DIR = Path("target/logs")
+LLM_CACHE_FILE = LLM_LOG_DIR / "last_llm_response.txt"
 
 
 class LLMData(TypedDict):
@@ -33,20 +39,42 @@ def thread_logger() -> logging.Logger:
 
 class Assistant:
     llm: LLM
-    requirement: dict[str, str]
-    schema: dict[str, str]
 
     def __init__(self, llm: LLM = DUMMY_LLM) -> None:
         self.llm = llm
+
+    def _read_cached_llm_output(self) -> str | None:
+        if not LLM_CACHE_FILE.exists():
+            return None
+        return LLM_CACHE_FILE.read_text(encoding="utf-8")
+
+    def _write_cached_llm_output(self, raw_output: str) -> None:
+        LLM_LOG_DIR.mkdir(parents=True, exist_ok=True)
+        _ = LLM_CACHE_FILE.write_text(raw_output, encoding="utf-8")
 
     @property
     def log(self) -> logging.Logger:
         return thread_logger()
 
     def fetch(self, url: str) -> str:
-        self.log.info("fetching %s", url)
-        self.log.info("About to fetch URL: %s", url)
+        self.log.info("Fetching URL: %s", url)
         return get_html(url)
+
+    def _make_request(
+        self,
+        prompt: str,
+        model: str | None,
+        temperature: float | None,
+        max_tokens: int | None,
+        reasoning_effort: str | None,
+    ):
+        return to_request(
+            prompt,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            reasoning_effort=reasoning_effort or REASONING_EFFORT,
+        )
 
     def ask(
         self,
@@ -55,11 +83,10 @@ class Assistant:
         model: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
     ) -> str:
-        req = to_request(
-            prompt, model=model, temperature=temperature, max_tokens=max_tokens
-        )
-        self.log.info("Calling LLM.chat, model=%s", model or "<default>")
+        req = self._make_request(prompt, model, temperature, max_tokens, reasoning_effort)
+        self.log.info("Calling LLM.chat, model=%s", model or OPENAI_MODEL)
         res = self.llm.chat(req)
         if not res.choices:
             self.log.error("LLM returned no content, see logs for provider call details")
@@ -73,11 +100,10 @@ class Assistant:
         model: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
     ) -> str:
-        req = to_request(
-            prompt, model=model, temperature=temperature, max_tokens=max_tokens
-        )
-        self.log.info("Calling LLM.async_chat, model=%s", model or "<default>")
+        req = self._make_request(prompt, model, temperature, max_tokens, reasoning_effort)
+        self.log.info("Calling LLM.async_chat, model=%s", model or OPENAI_MODEL)
         res = await self.llm.async_chat(req)
         if not res.choices:
             self.log.error("Async LLM call returned no content, see logs for provider call details")
@@ -87,11 +113,7 @@ class Assistant:
     def build_llm_data(self, html: str, *, include_raw_html: bool = False) -> LLMData:
         skills_all: list[str] = list(
             dict.fromkeys(
-                s
-                for d in (SKILLS, SKILLS_CONSOLIDATED)
-                for v in d.values()
-                for s in v
-                if s
+                skill for values in SKILLS.values() for skill in values if skill
             )
         )
         data: LLMData = {
@@ -109,21 +131,11 @@ class Assistant:
         self, application: dict[str, object], out_dir: Path | None = None
     ) -> dict[str, Path]:
         """Store application materials: generate LaTeX files, compile to PDFs, and organize outputs."""
-        details: dict[str, str] = cast(dict[str, str], application.get("details", {}))
-
         self.log.info("Generating letter files")
-        generate_letter_files(details, cast(dict[str, str], application["letter"]))
+        generate_letter_files(application)
 
         self.log.info("Generating resume files")
-        # Merge skills and languages into details
-        details_with_lists = cast(dict[str, str | list[str]], details.copy())
-        details_with_lists["skills"] = cast(list[str], application.get("skills", []))
-        details_with_lists["languages"] = cast(list[str], application.get("languages", []))
-
-        generate_resume_files(
-            cast(list[dict[str, str | list[str]]], application["work_experience"]),
-            details_with_lists,
-        )
+        generate_resume_files(application)
 
         target_dir = Path("target/autogen")
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -135,9 +147,8 @@ class Assistant:
         compile_pdfs(target_dir)
 
         self.log.info("Renaming/moving PDFs to final location")
-        letter_pdf_final, resume_pdf_final = rename_pdfs(
-            target_dir, details.get("company", "")
-        )
+        company = cast(dict[str, str], application.get("details", {})).get("company", "")
+        letter_pdf_final, resume_pdf_final = rename_pdfs(target_dir, company)
 
         return {
             "letter_tex": Path("letter") / "body.tex",
@@ -152,16 +163,25 @@ class Assistant:
         *,
         model: str = "",
         temperature: float = 0.2,
-        max_tokens: int = 4000,
+        max_tokens: int = RESPONSES_MAX_OUTPUT_TOKENS,
         custom_prompt: str = "",
     ) -> str:
-        prompt: str = "\n".join(
-            [str(custom_prompt), self.get_context(url), self.get_full_requirements()]
-        )
+        # cached = self._read_cached_llm_output()
+        # if cached is not None:
+        #     self.log.info("Using cached LLM response from %s", LLM_CACHE_FILE)
+        #     return cached
+
+        prompt: str = "\n".join([
+            str(custom_prompt),
+            self.get_context(url),
+            "Requirements:\n" + "\n".join(REQUIREMENTS.values()) + "Schema: " + FULL_SCHEMA
+        ])
         self.log.info("About to generate application via LLM")
-        return self.ask(
+        raw_output = self.ask(
             prompt, model=model, temperature=temperature, max_tokens=max_tokens
         )
+        # self._write_cached_llm_output(raw_output)
+        return raw_output
 
     def generate_and_save_application(
         self, url: str, out_dir: Path | None = None
@@ -172,20 +192,17 @@ class Assistant:
         self.log.info(f"Raw LLM response (first 500 chars): {raw_response[:500]}")
 
         # Strip reasoning output (for models like GPT-OSS, DeepSeek-R1)
-        import re
-        # Remove <think>...</think> tags
         raw_response = re.sub(r'<think>.*?</think>', '', raw_response, flags=re.DOTALL)
+
         # Strip markdown code blocks if present
         json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', raw_response, re.DOTALL)
         if json_match:
             raw_response = json_match.group(1)
             self.log.info("Extracted JSON from markdown code block")
-        # Clean up any remaining whitespace
-        raw_response = raw_response.strip()
 
-        application: dict[str, object] = cast(
-            dict[str, object], json.loads(raw_response)
-        )
+        raw_response = raw_response.strip()
+        application: dict[str, object] = json.loads(raw_response)
+
         self.log.info("Storing application to disk")
         return self.store_application(application, out_dir)
 
@@ -193,41 +210,16 @@ class Assistant:
         self.log.info("Asking assistant a question")
         return self.ask(
             self.get_context(about_url) + "\n" + question,
-            model="gpt-4o-mini",
+            model=OPENAI_MODEL,
             temperature=1,
-            max_tokens=3000,
+            max_tokens=RESPONSES_MAX_OUTPUT_TOKENS,
         )
 
-    def get_full_requirements(self) -> str:
-        return (
-            "Requirements:\n"
-            + "\n".join(self.requirement.values())
-            + "Schema: "
-            + self.get_schema("full")
-        )
-
-    def get_schema(self, type: str) -> str:
-        if type in self.schema or type != "full":
-            return self.schema.get(type, "")
-        return (
-            "{"
-            f"'details': {self.schema['details_schema']},"
-            f"'letter': {self.schema['letter_schema']},"
-            f"'work_experience':[{self.schema['work_experience_schema']}],"
-            f"'skills':{self.schema['skills_schema']},"
-            f"'languages':{self.schema['languages_schema']}"
-            "}"
-        )
 
     def get_context(self, url: str) -> str:
         data = self.build_llm_data(self.fetch(url))
         return (
-            "You are an expert in writing résumés and cover letters for tech job applications.\n"
-            "You can tailor résumés so they get past the ATS.\n"
-            "You are given candidate data and plaintext job description to draft output.\n"
-            "Make all content as specific to the job description and the company as possible.\n"
-            "You are allowed to use online facts about the company. Facts only. \n"
-            "Pick 5-ish skills mentioned in the job description that are close to skills in the input candidate's list and place them first in the output returned\n"
+            f"{CONTEXT_INSTRUCTIONS}"
             f"Candidate: {data['person']}\n"
             f"Experience: {data['experience']}\n"
             f"Skills pool: {', '.join(data['skills'])}\n"
@@ -235,47 +227,3 @@ class Assistant:
             f"Reference letter content (structure/length guide):\n{data['cover_letter']}\n\n"
             f"Job description (plaintext):\n{data['page_text']}\n\n"
         )
-
-    requirement: dict[str, str] = {
-        "details": (
-            "- Generate a tailored tagline (4-5 sentences) highlighting strengths including technical expertise for this role.\n"
-            "- Match the style of the reference tagline: professional, concise, without using personal pronouns or the person's name.\n"
-            "- Feel free to mention company names from the candidate's experience.\n"
-        ),
-        "letter": (
-            f"- Cover letter must have exactly these 4 keys (in order): {','.join(LETTER_CONTENT.keys())}. The content is just a guideline."
-            f"- Match the reference letter's tone. Keep the number of words within 25% of the reference letter's.\n"
-            f"- Use the exact role name from the job posting when referring to the position.\n"
-        ),
-        "work_experience": (
-            "- Work experience must be r\u00e9sum\u00e9-ready (2-5 concise bullets per role).\n"
-            "- Use strong action verbs, quantify result/impact.\n"
-            "- Use bolded keywords from the job text where applicable, especially in work-experience bullets; prefer exact matches.\n"
-            "- Match language and phrasing with job description where possible.\n"
-        ),
-        "skills": (
-            "- Choose 10–15 skills related to the job; prefer skills in the job text.\n"
-            "- Order skills based on relevance to the job description (most relevant first).\n"
-        ),
-        "languages": (
-            "- Choose 8–12 programming languages from the skills pool based on job relevance.\n"
-            "- Order languages based on relevance to the job description (most relevant first).\n"
-            "- Only include languages that are actual programming languages (e.g., Python, Java, C++, not frameworks or tools).\n"
-        ),
-        "generic": "- Keep first-person voice, concise, professional.",
-        "output": (
-            "Output schema: return ONLY minified JSON (no markdown, no commentary).\n"
-            "- Most importantly, do not fabricate facts; rephrase candidate's experience to suit the role while staying truthful."
-        ),
-    }
-
-    schema: dict[str, str] = {
-        "letter_schema": "{"
-        + ",".join([f'"{k}":"..."' for k in LETTER_CONTENT.keys()])
-        + "}",
-        "work_experience_schema": '{"company":"...","role":"...","start":"...","end":"...",'
-        + '"location":"...","bullets":["..."]}',
-        "skills_schema": '["..."]',
-        "languages_schema": '["..."]',
-        "details_schema": '{"company":"...","role":"...","recipient":"...","city":"...","state":"...","tagline":"..."}',
-    }

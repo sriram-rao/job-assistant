@@ -29,18 +29,6 @@ PERSON: dict[str, str | dict[str, str]] = {
     )
 }
 
-SKILLS: dict[str, list[str]] = {
-    "languages": [
-        "Python", "C#", "Java", "C++", "C", "Ruby", "Swift", "Lisp", "Prolog", "SQL",
-    ],
-    "ui_ux": ["HTML", "CSS", "TypeScript", "JavaScript", "SwiftUI"],
-    "automation": ["Bash", "Powershell", "Lua"],
-    "databases": ["Big Data", "NoSQL", "MongoDB", "OLAP", "PostgreSQL", "Column-stores"],
-    "compute_platforms": ["Spark", "ETL", "DAG", "Query Engine", "Apache Calcite", "Iceberg", "Trino"],
-    "backend": [".NET", "Spring", "Flask", "REST", "SvelteKit", "Microservices", "AOP", "Architecture", "Caching"],
-    "infrastructure": ["Docker", "AWS", "Azure", "CI/CD", "Custom IaC"],
-}
-
 EXPERIENCE: list[dict[str, str | list[str]]] = [
     {
         "company": "University of California, Irvine",
@@ -49,9 +37,10 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
         "end": "Sep 2024",
         "location": "Irvine, CA",
         "bullets": [
-            "Designed DB plugin balancing latency and costs for query-processing and ML-forecast loads.",
-            "Developed framework for implicit simulator invocation (e.g., HYSPLIT) inside PostgreSQL.",
-            "Created pipeline execution system for DAG-defined workflows (sample on GitHub: sriram-rao/rush).",
+            "Designed and implemented a PostgreSQL plugin balancing latency and resource cost of query processing for ML-forecast workloads.",
+            "Developed a framework to invoke data generators (e.g. simulators like HYSPLIT) implicitly within PostgreSQL.",
+            "Collaborated with civil engineers, chemists and physicists to build backend systems for smart practices and IoT architectures to monitor prescribed fires (planned burns).",
+            "Created a lightweight pipeline execution system in Python for DAG workflows (sample on GitHub: sriram-rao/rush).",
         ],
         "category": "academia",
     },
@@ -62,8 +51,8 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
         "end": "Sep 2022",
         "location": "Remote, CA",
         "bullets": [
-            "POC for progressive query response in data lakes; worked with Apache Calcite and Iceberg.",
-            "Improved row-count estimation in query planning via execution-observed statistics (LEO, Markl VLDB 2001).",
+            "Built a POC for progressive query response improvement in data lakes; worked with Apache Calcite and Iceberg.",
+            "Improved row-count estimation in query planning using statistics observed during execution (From LEO, Markl VLDB 2001).",
         ],
         "category": "industry",
     },
@@ -74,10 +63,11 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
         "end": "Sep 2020",
         "location": "Bengaluru, India",
         "bullets": [
-            "Rebuilt ETL workflow manager for 100+ pipelines; deploy time from 1h to <5s.",
-            "Piloted Spark Streaming POC for A/B significance 3x faster than batched method.",
-            "Refactored Azure-hosted API caching via AOP; reduced config code 5x (~300 lines).",
-            "Contributed to 40+ design reviews and 100+ code reviews; on-call issue support.",
+            "Owned Bing Ads experimentation data framework that processed billions of ad-serving requests daily, computing metrics for trigger-string–based experiments to enable 60-day comparisons in under 20 minutes.",
+            "Rebuilt workflow manager used for ETL in 100+ pipelines; reduced deployment time from 1h to <5s.",
+            "Led real-time Spark Streaming POC for A/B test significance to compute results 3x faster than the batched method.",
+            "Refactored the cache layer of an Azure-hosted API layer via Aspect-Oriented Programming; reduced config code 5x.",
+            "Contributed to 40+ design reviews and 100+ code reviews, on-call support and teammate guidance.",
         ],
         "category": "industry",
     },
@@ -88,7 +78,7 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
         "end": "Jun 2015",
         "location": "Bengaluru, India",
         "bullets": [
-            "Analyzed insert/response times for Kusto, MongoDB, and a column-store under stress loads.",
+            "Analyzed insert/response times for Kusto, MongoDB, and a column-store under stress loads (load tests).",
             "Matched data stores to use-cases (log analysis vs aggregate queries).",
             "Enabled migration from OLAP cubes to column-store; ETL time from 10 days to 1 hour.",
         ],
@@ -101,7 +91,7 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
         "end": "Current",
         "location": "Remote, CA",
         "bullets": [
-            "Building an iOS app to intuitively record and export a DBT mood journal.",
+            "Built an iOS app to intuitively record and export a DBT mood journal.",
         ],
         "category": "industry",
     },
@@ -118,6 +108,52 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
         "category": "academia",
     },
 ]
+
+# Map slugs to experience metadata (order matters for resume display)
+EXPERIENCE_MAP: dict[str, dict[str, str]] = {
+    "gsr": {
+        "company": "University of California, Irvine",
+        "role": "Graduate Student Researcher",
+        "start": "Sep 2020",
+        "end": "Sep 2024",
+        "location": "Irvine, CA",
+    },
+    "dremio": {
+        "company": "Dremio",
+        "role": "Software Engineer - PhD Intern",
+        "start": "Jun 2022",
+        "end": "Sep 2022",
+        "location": "Remote, CA",
+    },
+    "microsoft": {
+        "company": "Microsoft",
+        "role": "Software Engineer 2",
+        "start": "Jun 2016",
+        "end": "Sep 2020",
+        "location": "Bengaluru, India",
+    },
+    "internmicrosoft": {
+        "company": "Microsoft",
+        "role": "Summer Intern",
+        "start": "May 2015",
+        "end": "Jun 2015",
+        "location": "Bengaluru, India",
+    },
+    "ta": {
+        "company": "University of California, Irvine",
+        "role": "Teaching Assistant",
+        "start": "Sep 2020",
+        "end": "Dec 2024",
+        "location": "Irvine, CA",
+    },
+    "drexel": {
+        "company": "Drexel University",
+        "role": "Volunteer Intern",
+        "start": "May 2025",
+        "end": "Current",
+        "location": "Remote, CA",
+    },
+}
 
 EDUCATION: list[dict[str, object]] = [
     {
@@ -147,14 +183,15 @@ EDUCATION: list[dict[str, object]] = [
 ]
 
 # Consolidated lists (skills/areas and packages)
-SKILLS_CONSOLIDATED: dict[str, list[str]] = {
-    # Core skill groups (superset of SKILLS)
+SKILLS: dict[str, list[str]] = {
+    # Core skill groups
     "languages": [
         "Python", "C#", "Java", "C++", "C", "Ruby", "Swift", "Lisp", "Prolog", "SQL",
     ],
     "frontend": [
         "HTML", "CSS", "JavaScript", "TypeScript",
         "Svelte", "SvelteKit", "TailwindCSS", "daisyui", 
+        "Grafana"
     ],
     "automation": ["Bash", "Powershell", "Lua"],
     "databases": [
@@ -169,11 +206,11 @@ SKILLS_CONSOLIDATED: dict[str, list[str]] = {
         ".NET", "Spring", "Flask", "REST", "Microservices", "AOP", "Architecture", "Caching",
         "Rails", 
     ],
-    "infrastructure": ["Docker", "AWS", "Azure", "CI/CD", "Custom IaC"],
+    "infrastructure": ["Linux", "Docker", "AWS", "Azure", "CI/CD", "Custom IaC"],
     "ios": ["SwiftUI"],
     # Conceptual areas
     "areas": [
-        "Distributed data systems", "Databases & query engines", "ETL pipelines & DAGs",
+        "Distributed data systems", "Databases", "ETL pipelines & DAGs",
         "Stream processing (Spark)", "Caching & microservices", "Cloud (Azure, AWS)", "CI/CD & IaC",
         "Workload-aware precomputation", "Simulator integration (HYSPLIT)", "A/B testing & experimentation",
         "API frameworks", "Incremental view maintenance", "Self-driving databases",
