@@ -8,7 +8,7 @@ from typing import cast
 
 from dotenv import load_dotenv
 
-from assistant import Assistant
+from application_pipeline import ask_about, generate_and_save_application, generate_application
 from ml.openai import OpenAI
 from util.tex import compile_to_pdf
 
@@ -75,11 +75,11 @@ def demo_llm(url: str) -> None:
         or "file:///Users/sriramrao/Code/job-assistant/target/openings/Founding%20Engineer%20at%20Noise%20%E2%80%A2%20New%20York%20%E2%80%A2%20Remote%20(Work%20from%20Home)%20_%20Wellfound.html"
     )
     question = "Write a cover letter showing my suitability for the role"
-    logging.info("About to call Assistant.generate_application (LLM call)...")
+    logging.info("About to call generate_application (LLM call)...")
     letter = cast(
         dict[str, str],
         json.loads(
-            Assistant(OpenAI()).generate_application(url, custom_prompt=question)
+            generate_application(url, OpenAI(), custom_prompt=question)
         )["letter"],
     )
     logging.info("LLM returned generated letter")
@@ -101,10 +101,10 @@ def generate_application_from_url(
     setup_logging()
     logging.info(f"Generating application for: {url}")
     logging.info(
-        "About to call Assistant.generate_and_save_application (LLM call + file IO)..."
+        "About to call generate_and_save_application (LLM call + file IO)..."
     )
 
-    output_paths = Assistant(OpenAI()).generate_and_save_application(url, output_dir)
+    output_paths = generate_and_save_application(url, OpenAI(), output_dir)
 
     logging.info(f"Application saved to: {output_paths}")
     return output_paths
@@ -139,7 +139,7 @@ if __name__ == "__main__":
             args.question if args.question else "Write a cover letter showing my suitability for the role"
         )
         logging.info("About to ask assistant (LLM call) with provided prompt")
-        print(Assistant(OpenAI()).ask_about(prompt, args.url))
+        print(ask_about(prompt, args.url, OpenAI()))
         logging.info("Assistant completed question response")
     elif args.url:
         logging.info("About to generate application for URL: %s", args.url)
