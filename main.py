@@ -1,6 +1,7 @@
 import argparse
 import json
 import logging
+import os
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -9,6 +10,8 @@ from typing import cast
 from dotenv import load_dotenv
 
 from application_pipeline import ask_about, generate_and_save_application, generate_application
+from handlers.llm_client import LLMValidator
+from handlers.web_parser import WebParser
 from ml.openai import OpenAI
 from util.tex import compile_to_pdf
 
@@ -79,7 +82,7 @@ def demo_llm(url: str) -> None:
     letter = cast(
         dict[str, str],
         json.loads(
-            generate_application(url, OpenAI(), custom_prompt=question)
+            generate_application(WebParser().process(url), OpenAI(), custom_prompt=question)
         )["letter"],
     )
     logging.info("LLM returned generated letter")
@@ -105,9 +108,26 @@ def generate_application_from_url(
     )
 
     output_paths = generate_and_save_application(url, OpenAI(), output_dir)
+    validate_resume(url, output_paths["resume_pdf"])
 
-    logging.info(f"Application saved to: {output_paths}")
     return output_paths
+
+
+def validate_resume(job_url: str, resume_pdf: Path):
+    """
+    Validate a resume using the provided job URL and resume PDF.
+    """
+    text = WebParser().process(job_url)
+    logging.info("Running ATS validation")
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    validator = LLMValidator(api_key=api_key)
+    validation_result = validator.process({
+        "job_text": text,
+        "resume_pdf_path": str(resume_pdf)
+    })
+    logging.info("ATS Score: %s/100", validation_result["ats_score"])
+    logging.info("Feedback: %s", validation_result["feedback"])
+    logging.info("Suggestions: %s", ", ".join(cast(list[str], validation_result["suggestions"])))
 
 
 if __name__ == "__main__":

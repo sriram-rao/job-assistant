@@ -1,7 +1,7 @@
-OPENAI_MODEL = "gpt-5-mini"
+OPENAI_MODEL = "gpt-5-nano"
 OPENAI_TIMEOUT = 300.0
 RESPONSES_MAX_OUTPUT_TOKENS = 16000
-REASONING_EFFORT = "high"
+REASONING_EFFORT = "low"
 
 
 # Prompt configuration for LLM resume generation

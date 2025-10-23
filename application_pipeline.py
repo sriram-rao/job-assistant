@@ -7,11 +7,18 @@ from typing import cast
 
 from defaults import EXPERIENCE, LETTER_CONTENT, PERSON, SKILLS
 from handlers.document_generator import LetterGenerator, ResumeGenerator
-from handlers.llm_client import LLMClient
+from handlers.llm_client import GPTClient
 from handlers.llm_response_parser import LLMResponseParser
 from handlers.web_parser import WebParser
+from ml.gpt import GPT
 from ml.llm import LLM
-from settings import CONTEXT_INSTRUCTIONS, FULL_SCHEMA, OPENAI_MODEL, REQUIREMENTS, RESPONSES_MAX_OUTPUT_TOKENS
+from settings import (
+    CONTEXT_INSTRUCTIONS,
+    FULL_SCHEMA,
+    OPENAI_MODEL,
+    REQUIREMENTS,
+    RESPONSES_MAX_OUTPUT_TOKENS,
+)
 from util.file import archive_old_pdfs, compile_pdfs, html_to_text, rename_pdfs
 
 
@@ -38,7 +45,9 @@ def build_llm_data(html: str) -> dict[str, object]:
 
 def get_context(url: str) -> str:
     """Build full prompt context from URL."""
-    web_parser = WebParser()
+    thread_logger().info("Fetching job text")
+
+    web_parser = WebParser(GPT())
     html = web_parser.process(url)
     data = build_llm_data(html)
     return (
@@ -46,14 +55,14 @@ def get_context(url: str) -> str:
         f"Candidate: {data['person']}\n"
         f"Experience: {data['experience']}\n"
         f"Skills pool: {', '.join(cast(list[str], data['skills']))}\n"
-        f"Reference tagline (style guide): {cast(dict, data['person']).get('tagline', '')}\n"
+        f"Reference tagline (style guide): {cast(dict[str, str], data['person']).get('tagline', '')}\n"
         f"Reference letter content (structure/length guide):\n{data['cover_letter']}\n\n"
         f"Job description (plaintext):\n{data['page_text']}\n\n"
     )
 
 
 def generate_application(
-    url: str,
+    job_text: str,
     llm: LLM,
     *,
     model: str = "",
@@ -66,19 +75,19 @@ def generate_application(
     log = thread_logger()
     prompt: str = "\n".join([
         str(custom_prompt),
-        get_context(url),
+        job_text,
         "Requirements:\n" + "\n".join(REQUIREMENTS.values()) + "Schema: " + FULL_SCHEMA
     ])
 
     log.info("About to generate application via LLM")
-    llm_client = LLMClient(
+    gpt_client = GPTClient(
         llm,
         model=model,
         temperature=temperature,
         max_tokens=max_tokens,
         reasoning_effort=reasoning_effort
     )
-    return llm_client.process(prompt)
+    return gpt_client.process(prompt)
 
 
 def generate_and_save_application(
@@ -89,8 +98,10 @@ def generate_and_save_application(
     """Generate application from URL and save to disk."""
     log = thread_logger()
 
+    # text = WebParser().process(url)
+
     log.info("Generating application JSON")
-    raw_response = generate_application(url, llm)
+    raw_response = generate_application(get_context(url), llm)
 
     response_parser = LLMResponseParser()
     application = response_parser.process(raw_response)
@@ -116,6 +127,7 @@ def generate_and_save_application(
     company = cast(dict[str, str], application.get("details", {})).get("company", "")
     letter_pdf_final, resume_pdf_final = rename_pdfs(target_dir, company)
 
+
     return {
         "letter_tex": Path("letter") / "body.tex",
         "letter_pdf": letter_pdf_final,
@@ -130,5 +142,5 @@ def ask_about(question: str, about_url: str, llm: LLM) -> str:
     log.info("Asking assistant a question")
 
     prompt = get_context(about_url) + "\n" + question
-    llm_client = LLMClient(llm, model=OPENAI_MODEL, temperature=1, max_tokens=RESPONSES_MAX_OUTPUT_TOKENS)
-    return llm_client.process(prompt)
+    gpt_client = GPTClient(llm, model=OPENAI_MODEL, temperature=1, max_tokens=RESPONSES_MAX_OUTPUT_TOKENS)
+    return gpt_client.process(prompt)

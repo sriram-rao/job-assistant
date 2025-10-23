@@ -8,10 +8,10 @@ from openai import OpenAI as OpenAIClient
 from openai.types.responses import ResponseInputParam
 
 from settings import OPENAI_MODEL
-from .llm import Request, Response, Message
+from .llm import LLM, Request, Response, Message
 
 
-class GPT:
+class GPT(LLM):
     def __init__(self, api_key: str | None = None, default_model: str = OPENAI_MODEL) -> None:
         self.client: OpenAIClient = OpenAIClient(api_key=api_key or os.environ.get("OPENAI_API_KEY"))
         self.default_model: str = default_model
