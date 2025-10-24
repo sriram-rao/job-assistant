@@ -8,7 +8,6 @@ from ml.gpt import GPT
 from ml.agent import Agent
 
 from .handler import Handler
-from .llm_client import Agent
 from net.web import get_html
 from util.file import html_to_text
 
@@ -21,10 +20,11 @@ def _thread_logger() -> logging.Logger:
 class WebParser(Handler[str, str]):
     """Fetches and parses web pages to plaintext."""
 
-    def __init__(self, llm: Agent = GPT()):
-        self.llm = llm
+    def __init__(self, llm: Agent | None = None):
+        self.llm: Agent = llm or GPT()
 
     @property
+    @override
     def log(self) -> logging.Logger:
         return _thread_logger()
 

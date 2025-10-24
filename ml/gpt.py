@@ -19,10 +19,11 @@ class GPT(Agent):
 
     @override
     def chat_full(self, messages: list[Message], model: str = "", max_tokens: int = 4096, temperature: float = 1, reasoning: str = "low") -> list[str]:
+        model = model or self.model
         response = self.client.responses.parse(
             model=model or self.model,
             max_output_tokens=max_tokens,
-            temperature=temperature,
+            temperature=temperature if not model.startswith("gpt-5") else Omit(),
             instructions=self.system_prompt,
             input=str(messages[0]["content"]),
             reasoning=Reasoning(effort=cast(ReasoningEffort, reasoning)) if (model or self.model).startswith("gpt-5") else Omit()
