@@ -4,9 +4,11 @@ import logging
 import threading
 from typing import override
 
+from ml.gpt import GPT
+from ml.agent import Agent
+
 from .handler import Handler
-from .llm_client import GPTClient
-from ml.llm import LLM, DUMMY_LLM
+from .llm_client import Agent
 from net.web import get_html
 from util.file import html_to_text
 
@@ -19,7 +21,7 @@ def _thread_logger() -> logging.Logger:
 class WebParser(Handler[str, str]):
     """Fetches and parses web pages to plaintext."""
 
-    def __init__(self, llm: LLM = DUMMY_LLM):
+    def __init__(self, llm: Agent = GPT()):
         self.llm = llm
 
     @property
@@ -28,13 +30,12 @@ class WebParser(Handler[str, str]):
 
     def extract_job_description(self, full_text: str) -> str:
         """Extract essential job description from full page text using LLM."""
-        if self.llm == DUMMY_LLM:
+        if not self.llm:
             return full_text
 
         prompt = f"Extract only job description text from:\n\n{full_text}"
         self.log.info("Extracting job description using gpt-4o-mini")
-        gpt_client = GPTClient(self.llm, model="gpt-4o-mini", temperature=0.3, max_tokens=4000)
-        return gpt_client.process(prompt)
+        return self.llm.chat(prompt, "gpt-4o-mini", 1024 * 4, 0.3, "low")
 
     @override
     def process(self, input_data: str) -> str:

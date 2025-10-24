@@ -4,6 +4,7 @@ import json
 import logging
 import re
 import threading
+from typing import override
 
 from .handler import Handler
 
@@ -20,18 +21,19 @@ class LLMResponseParser(Handler[str, dict[str, object]]):
     def log(self) -> logging.Logger:
         return thread_logger()
 
-    def process(self, raw_response: str) -> dict[str, object]:
+    @override
+    def process(self, input_data: str) -> dict[str, object]:
         """Parse raw LLM response and extract application JSON."""
-        self.log.info(f"Raw LLM response (first 500 chars): {raw_response[:500]}")
+        self.log.info(f"Raw LLM response (first 500 chars): {input_data[:500]}")
 
         # Strip reasoning output (for models like GPT-OSS, DeepSeek-R1)
-        raw_response = re.sub(r'<think>.*?</think>', '', raw_response, flags=re.DOTALL)
+        input_data = re.sub(r'<think>.*?</think>', '', input_data, flags=re.DOTALL)
 
         # Strip markdown code blocks if present
-        json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', raw_response, re.DOTALL)
+        json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', input_data, re.DOTALL)
         if json_match:
-            raw_response = json_match.group(1)
+            input_data = json_match.group(1)
             self.log.info("Extracted JSON from markdown code block")
 
-        raw_response = raw_response.strip()
-        return json.loads(raw_response)
+        input_data = input_data.strip()
+        return json.loads(input_data)

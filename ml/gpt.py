@@ -1,50 +1,31 @@
 from __future__ import annotations
 
-import logging
 import os
-from typing import cast
+from typing import cast, override
 
 from openai import OpenAI as OpenAIClient
-from openai.types.responses import ResponseInputParam
+from openai.types.shared.reasoning_effort import ReasoningEffort
+from openai.types.shared_params.reasoning import Reasoning
 
 from settings import OPENAI_MODEL
-from .llm import LLM, Request, Response, Message
+from .agent import Agent, Message
 
 
-class GPT(LLM):
-    def __init__(self, api_key: str | None = None, default_model: str = OPENAI_MODEL) -> None:
+class GPT(Agent):
+    def __init__(self, default_model: str = OPENAI_MODEL, system_prompt: str = "", api_key: str | None = None) -> None:
+        super().__init__(default_model, system_prompt, api_key)
         self.client: OpenAIClient = OpenAIClient(api_key=api_key or os.environ.get("OPENAI_API_KEY"))
-        self.default_model: str = default_model
 
-    def chat(self, request: Request) -> Response:
-        model = request.model or self.default_model
-        
-        response = self.client.responses.create(
-            model=model,
-            input=cast(ResponseInputParam, [{"type": "message", "role": str(m.payload.get("role", "assistant")), "content": m.content} for m in request.messages]),
-            temperature=request.temperature,
-            max_output_tokens=request.max_tokens,
-        )
-        
-        messages = [
-            Message(
-                payload={"role": "assistant", "index": 0, "finish_reason": response.status},
-                content=response.output_text or ""
-            )
-        ]
-        
-        if response.usage:
-            logging.info((
-                f"GPT Usage - Model: {model}, Input: {response.usage.input_tokens}, "
-                f"Output: {response.usage.output_tokens}, Total: {response.usage.input_tokens + response.usage.output_tokens}"
-            ))
-        
-        return Response(
-            id=response.id,
-            model=model,
-            choices=messages,
-            created=int(response.created_at),
+
+    @override
+    def chat_full(self, messages: list[Message], model: str = "", max_tokens: int = 4096, temperature: float = 1, reasoning: str = "low") -> list[str]:
+        response = self.client.responses.parse(
+            model=model or self.model,
+            max_output_tokens=max_tokens,
+            temperature=temperature,
+            reasoning=Reasoning(effort=cast(ReasoningEffort, reasoning)),
+            instructions=self.system_prompt,
+            input=str(messages[0]["content"])
         )
 
-    async def async_chat(self, request: Request) -> Response:
-        return self.chat(request)
+        return [choice.message.content for choice in getattr(response, "choices", [])]

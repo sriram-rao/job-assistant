@@ -1,21 +1,15 @@
-# filepath: ml/claude_sdk.py
-"""
-Minimal Claude (Anthropic) Python SDK usage.
-No custom Request/Response classes or protocols.
-"""
-
 import os
 from typing import cast, override
 import anthropic
-from anthropic.types import Message
 from anthropic.types.beta import FileMetadata
-from ml.llm_protocol import LLMProtocol
+from ml.agent import Agent, Message
 
-class ClaudeSDK(LLMProtocol):
+class Claude(Agent):
     api_key: str
     client: anthropic.Anthropic
 
-    def __init__(self, api_key: str = ""):
+    def __init__(self, model: str = "claude-haiku-4-5", system_prompt: str = "", api_key: str = ""):
+        super().__init__(model, system_prompt, api_key)
         self.api_key = api_key
         self.client = anthropic.Anthropic(
             api_key=self.api_key,
@@ -23,25 +17,19 @@ class ClaudeSDK(LLMProtocol):
         )
 
     @override
-    def chat_full(self, messages: list[dict[str, str]], model: str = "claude-haiku-4-5", max_tokens: int = 1024, system: str = "", temperature: float = 1.0) -> Message:
+    def chat_full(self, messages: list[Message], model: str = "claude-haiku-4-5", max_tokens: int = 1024, temperature: float = 1.0, reasoning: str = "low") -> list[str]:
         """
         messages: list of {"role": "user"|"assistant", "content": str}
         """
-        return self.client.messages.create(
+        response = self.client.messages.create(
             model=model,
             max_tokens=max_tokens,
             messages=cast("list[anthropic.types.MessageParam]", messages),
             temperature=temperature,
-            system=system
+            system=self.system_prompt
         )
+        return [block.text for block in response.content if block.type == "text"]
 
-    @override
-    def chat(self, prompt: str) -> str:
-        """
-        Simple chat interface: single prompt in, string out.
-        """
-        response = self.chat_full([{"role": "user", "content": prompt}])
-        return "".join(block.text for block in response.content)
 
     def upload_file(self, local_path: str) -> FileMetadata:
         filename = os.path.basename(local_path)
@@ -55,9 +43,15 @@ class ClaudeSDK(LLMProtocol):
                 file=(filename, f, content_type),
             )
 
+    def make_file_message(self, file_metadata: FileMetadata) -> Message:
+        return {"type": "document", "source": {
+            "type": "file",
+            "file_id": file_metadata.id
+        }}
+
 # Example usage:
 if __name__ == "__main__":
-    claude = ClaudeSDK()
+    claude = Claude()
     print(claude.chat("Hey gpT"))
     # Upload a file
     # res = claude.upload_file("/path/to/document.pdf")

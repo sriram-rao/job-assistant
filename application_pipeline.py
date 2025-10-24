@@ -7,11 +7,11 @@ from typing import cast
 
 from defaults import EXPERIENCE, LETTER_CONTENT, PERSON, SKILLS
 from handlers.document_generator import LetterGenerator, ResumeGenerator
-from handlers.llm_client import GPTClient
+from handlers.llm_client import AgentHandler
 from handlers.llm_response_parser import LLMResponseParser
 from handlers.web_parser import WebParser
 from ml.gpt import GPT
-from ml.llm import LLM
+from ml.agent import Agent
 from settings import (
     CONTEXT_INSTRUCTIONS,
     FULL_SCHEMA,
@@ -29,16 +29,26 @@ def thread_logger() -> logging.Logger:
 
 def build_llm_data(html: str) -> dict[str, object]:
     """Build structured data for LLM from HTML."""
-    skills_all: list[str] = list(
-        dict.fromkeys(
-            skill for values in SKILLS.values() for skill in values if skill
-        )
-    )
+    # Only send core technical skills (exclude verbose "areas", "ecosystems", "data_science")
+    core_skill_keys = ["languages", "databases", "compute_platforms", "backend", "infrastructure", "automation"]
+    skills_filtered = [
+        skill
+        for key in core_skill_keys
+        if key in SKILLS
+        for skill in SKILLS[key]
+    ]
+
+    # Remove "category" field from experience (not needed for LLM)
+    experience_clean = [
+        {k: v for k, v in exp.items() if k != "category"}
+        for exp in EXPERIENCE
+    ]
+
     return {
         "page_text": html_to_text(html),
         "person": PERSON,
-        "experience": EXPERIENCE,
-        "skills": skills_all,
+        "experience": experience_clean,
+        "skills": list(dict.fromkeys(skills_filtered)),  # Remove duplicates, preserve order
         "cover_letter": LETTER_CONTENT,
     }
 
@@ -50,49 +60,49 @@ def get_context(url: str) -> str:
     web_parser = WebParser(GPT())
     html = web_parser.process(url)
     data = build_llm_data(html)
+    person = cast(dict[str, str], data['person'])
+    skills = ', '.join(cast(list[str], data['skills']))
+
     return (
         f"{CONTEXT_INSTRUCTIONS}"
         f"Candidate: {data['person']}\n"
         f"Experience: {data['experience']}\n"
-        f"Skills pool: {', '.join(cast(list[str], data['skills']))}\n"
-        f"Reference tagline (style guide): {cast(dict[str, str], data['person']).get('tagline', '')}\n"
-        f"Reference letter content (structure/length guide):\n{data['cover_letter']}\n\n"
-        f"Job description (plaintext):\n{data['page_text']}\n\n"
+        f"Skills: {skills}\n"
+        f"Reference tagline: {person.get('tagline', '')}\n"
+        f"Reference letter:\n{data['cover_letter']}\n\n"
+        f"Job description:\n{data['page_text']}\n\n"
     )
 
 
 def generate_application(
     job_text: str,
-    llm: LLM,
+    llm: Agent,
     *,
     model: str = "",
     temperature: float = 0.2,
     max_tokens: int = RESPONSES_MAX_OUTPUT_TOKENS,
     custom_prompt: str = "",
-    reasoning_effort: str | None = None,
+    reasoning_effort: str = "low",
 ) -> str:
     """Generate application JSON from URL."""
     log = thread_logger()
-    prompt: str = "\n".join([
-        str(custom_prompt),
-        job_text,
-        "Requirements:\n" + "\n".join(REQUIREMENTS.values()) + "Schema: " + FULL_SCHEMA
-    ])
+    requirements = "\n".join(REQUIREMENTS.values())
+    prompt = f"{custom_prompt}\n{job_text}\n{requirements}\nSchema: {FULL_SCHEMA}"
 
     log.info("About to generate application via LLM")
-    gpt_client = GPTClient(
+    client = AgentHandler(
         llm,
         model=model,
         temperature=temperature,
         max_tokens=max_tokens,
         reasoning_effort=reasoning_effort
     )
-    return gpt_client.process(prompt)
+    return client.process(prompt)
 
 
 def generate_and_save_application(
     url: str,
-    llm: LLM,
+    llm: Agent,
     out_dir: Path | None = None
 ) -> dict[str, Path]:
     """Generate application from URL and save to disk."""
@@ -136,11 +146,11 @@ def generate_and_save_application(
     }
 
 
-def ask_about(question: str, about_url: str, llm: LLM) -> str:
+def ask_about(question: str, about_url: str, llm: Agent) -> str:
     """Ask a question about a job posting."""
     log = thread_logger()
     log.info("Asking assistant a question")
 
     prompt = get_context(about_url) + "\n" + question
-    gpt_client = GPTClient(llm, model=OPENAI_MODEL, temperature=1, max_tokens=RESPONSES_MAX_OUTPUT_TOKENS)
+    gpt_client = AgentHandler(llm, model=OPENAI_MODEL, temperature=1, max_tokens=RESPONSES_MAX_OUTPUT_TOKENS)
     return gpt_client.process(prompt)

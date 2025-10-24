@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-"""Test script for LLMValidator with OpenAI resume PDF."""
-
 import os
 from handlers.web_parser import WebParser
-from handlers.llm_client import LLMValidator
+from handlers.llm_validator import Validator
 
 def main():
     # Get API key from environment
@@ -21,7 +18,7 @@ def main():
     print(f"Fetched {len(job_text)} characters of job text\n")
 
     # Initialize validator
-    validator = LLMValidator(api_key=api_key)
+    validator = Validator(api_key=api_key)
 
     # Test with OpenAI resume
     resume_path = "target/autogen/openai_resume.pdf"
@@ -36,7 +33,7 @@ def main():
 
     print(f"\nATS Score: {result['ats_score']}/100")
     print(f"\nFeedback:\n{result['feedback']}")
-    print(f"\nSuggestions:")
+    print("\nSuggestions:")
     for i, suggestion in enumerate(result['suggestions'], 1):
         print(f"{i}. {suggestion}")
 

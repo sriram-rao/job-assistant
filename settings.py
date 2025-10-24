@@ -8,45 +8,35 @@ REASONING_EFFORT = "low"
 from defaults import LETTER_CONTENT
 
 CONTEXT_INSTRUCTIONS = (
-    "You are an expert in writing résumés and cover letters for tech job applications.\n"
-    "You can tailor résumés so they get past the ATS.\n"
-    "You are given candidate data and plaintext job description to draft output.\n"
-    "Make all content as specific to the job description and the company as possible.\n"
-    "You are allowed to use online facts about the company. Facts only. \n"
-    "Pick skills mentioned in the job description that are close to skills in the input candidate's list and place them first in the output returned. No duplicates.\n"
+    "Expert in ATS-optimized résumés and cover letters for tech roles.\n"
+    "Tailor all content to the job description and company (use factual company info).\n"
+    "Prioritize job-relevant skills from candidate's profile. No duplicates.\n"
 )
 
 REQUIREMENTS: dict[str, str] = {
     "details": (
-        "- Generate a tailored tagline (max. 4 lines on A4, font size 9) highlighting strengths for this role (can include technical expertise).\n"
-        "- Match the style of the reference tagline: professional, concise, without using personal pronouns or the person's name.\n"
-        "- Feel free to mention company names from the candidate's experience.\n"
+        "- Tailored tagline (max 4 lines, font 9) highlighting role-specific strengths.\n"
+        "- Professional, concise style. No pronouns or candidate name. May mention company names.\n"
     ),
     "letter": (
-        f"- Cover letter must have exactly these 4 keys (in order): {','.join(LETTER_CONTENT.keys())}. The content is just a guideline."
-        f"- Match the reference letter's tone. Keep the number of words within 25% of the reference letter's.\n"
-        f"- Use the exact role name from the job posting when referring to the position.\n"
+        f"- Must have these 4 keys in order: {','.join(LETTER_CONTENT.keys())}.\n"
+        f"- Match reference letter's tone. Length within 25% of reference. Use exact role name from posting.\n"
     ),
     "work_experience": (
-        "- Generate tailored bullet points (2-5 bullets per role) for each position. Only bullet points must be part of the output schema.\n"
-        "- Use strong action verbs, quantify result/impact.\n"
-        "- Use **bold** for keywords from the job text where applicable for matching skills, prefer exact matches. All bolded keywords must be unique, no repeats.\n"
-        "- Match language and phrasing with job description where possible. Ensure all content makes semantic sense, e.g. a lakehouse cannot power low-latency systems.\n"
-        "- Length of work experience (when on a page) should be roughly the same as that in the input."
+        "- 2-5 tailored bullets per role. Action verbs, quantified impact.\n"
+        "- **Bold** job-relevant keywords (exact matches preferred). Unique bolded terms only.\n"
+        "- Match job description phrasing. Ensure semantic accuracy. Maintain similar length to input.\n"
     ),
     "skills": (
-        "- Choose 10–15 skills related to the job; prefer skills in the job text.\n"
-        "- Order skills based on relevance to the job description (most relevant first).\n"
+        "- 10–15 job-relevant skills from job text, ordered by relevance.\n"
     ),
     "languages": (
-        "- Choose 8–12 programming languages from the skills pool based on job relevance.\n"
-        "- Order languages based on relevance.\n"
-        "- Only include programming languages (e.g., Python, Java, C++, not frameworks or tools).\n"
+        "- 8–12 programming languages (not frameworks/tools), ordered by job relevance.\n"
     ),
-    "generic": "- Keep first-person voice, concise, professional.",
+    "generic": "- First-person, concise, professional.",
     "output": (
-        "Output schema: return ONLY minified JSON (no markdown, no commentary).\n"
-        "- Most importantly, do not fabricate facts; rephrase candidate's experience to suit the role while staying truthful."
+        "- Return ONLY minified JSON (no markdown, no commentary).\n"
+        "- Never fabricate; rephrase truthfully to suit role.\n"
     ),
 }
 

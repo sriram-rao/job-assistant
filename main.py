@@ -10,9 +10,9 @@ from typing import cast
 from dotenv import load_dotenv
 
 from application_pipeline import ask_about, generate_and_save_application, generate_application
-from handlers.llm_client import LLMValidator
+from handlers.llm_validator import Validator
 from handlers.web_parser import WebParser
-from ml.openai import OpenAI
+from ml.gpt import GPT
 from util.tex import compile_to_pdf
 
 _ = load_dotenv()
@@ -82,7 +82,7 @@ def demo_llm(url: str) -> None:
     letter = cast(
         dict[str, str],
         json.loads(
-            generate_application(WebParser().process(url), OpenAI(), custom_prompt=question)
+        generate_application(WebParser().process(url), GPT(), custom_prompt=question)
         )["letter"],
     )
     logging.info("LLM returned generated letter")
@@ -107,7 +107,7 @@ def generate_application_from_url(
         "About to call generate_and_save_application (LLM call + file IO)..."
     )
 
-    output_paths = generate_and_save_application(url, OpenAI(), output_dir)
+    output_paths = generate_and_save_application(url, GPT(), output_dir)
     validate_resume(url, output_paths["resume_pdf"])
 
     return output_paths
@@ -120,7 +120,7 @@ def validate_resume(job_url: str, resume_pdf: Path):
     text = WebParser().process(job_url)
     logging.info("Running ATS validation")
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    validator = LLMValidator(api_key=api_key)
+    validator = Validator(api_key=api_key)
     validation_result = validator.process({
         "job_text": text,
         "resume_pdf_path": str(resume_pdf)
@@ -159,7 +159,7 @@ if __name__ == "__main__":
             args.question if args.question else "Write a cover letter showing my suitability for the role"
         )
         logging.info("About to ask assistant (LLM call) with provided prompt")
-        print(ask_about(prompt, args.url, OpenAI()))
+        print(ask_about(prompt, args.url, GPT()))
         logging.info("Assistant completed question response")
     elif args.url:
         logging.info("About to generate application for URL: %s", args.url)
