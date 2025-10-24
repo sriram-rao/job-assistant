@@ -24,8 +24,6 @@ def thread_logger() -> logging.Logger:
 
 
 class LLMHandler(Handler[str, str]):
-    """Handles GPT communication and caching."""
-
     def __init__(
         self,
         llm: Agent | None = None,

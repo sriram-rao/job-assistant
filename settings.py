@@ -15,6 +15,7 @@ CONTEXT_INSTRUCTIONS = (
 
 REQUIREMENTS: dict[str, str] = {
     "details": (
+        "- First-person, concise, professional.\n"
         "- Tailored tagline (max 4 lines, font 9) highlighting role-specific strengths.\n"
         "- Professional, concise style. No pronouns or candidate name. May mention company names.\n"
     ),
@@ -33,7 +34,6 @@ REQUIREMENTS: dict[str, str] = {
     "languages": (
         "- 8–12 programming languages (not frameworks/tools), ordered by job relevance.\n"
     ),
-    "generic": "- First-person, concise, professional.",
     "output": (
         "- Return ONLY minified JSON (no markdown, no commentary).\n"
         "- Never fabricate; rephrase truthfully to suit role.\n"

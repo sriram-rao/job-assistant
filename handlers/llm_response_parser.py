@@ -36,4 +36,5 @@ class LLMResponseParser(Handler[str, dict[str, object]]):
             self.log.info("Extracted JSON from markdown code block")
 
         input_data = input_data.strip()
+
         return json.loads(input_data)

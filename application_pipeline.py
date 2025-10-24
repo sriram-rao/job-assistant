@@ -5,7 +5,7 @@ import threading
 from pathlib import Path
 from typing import cast
 
-from defaults import EXPERIENCE, LETTER_CONTENT, PERSON, SKILLS
+from defaults import EXPERIENCE, LETTER_CONTENT, PERSON, get_skills
 from handlers.document_generator import LetterGenerator, ResumeGenerator
 from handlers.llm_handler import LLMHandler
 from handlers.llm_response_parser import LLMResponseParser
@@ -14,11 +14,11 @@ from ml.gpt import GPT
 from ml.agent import Agent
 from settings import (
     CONTEXT_INSTRUCTIONS,
-    FULL_SCHEMA,
     OPENAI_MODEL,
     REQUIREMENTS,
     RESPONSES_MAX_OUTPUT_TOKENS,
 )
+from settings import SCHEMAS
 from util.file import archive_old_pdfs, compile_pdfs, html_to_text, rename_pdfs
 
 
@@ -27,116 +27,101 @@ def thread_logger() -> logging.Logger:
     return logging.getLogger(name)
 
 
-def build_llm_data(html: str) -> dict[str, object]:
-    """Build structured data for LLM from HTML."""
-    # Only send core technical skills (exclude verbose "areas", "ecosystems", "data_science")
-    core_skill_keys = ["languages", "databases", "compute_platforms", "backend", "infrastructure", "automation"]
-    skills_filtered = [
-        skill
-        for key in core_skill_keys
-        if key in SKILLS
-        for skill in SKILLS[key]
-    ]
-
-    # Remove "category" field from experience (not needed for LLM)
-    experience_clean = [
-        {k: v for k, v in exp.items() if k != "category"}
-        for exp in EXPERIENCE
-    ]
-
-    return {
-        "page_text": html_to_text(html),
-        "person": PERSON,
-        "experience": experience_clean,
-        "skills": list(dict.fromkeys(skills_filtered)),  # Remove duplicates, preserve order
-        "cover_letter": LETTER_CONTENT,
-    }
-
-
 def get_context(url: str) -> str:
     """Build full prompt context from URL."""
     thread_logger().info("Fetching job text")
 
     web_parser = WebParser(GPT())
     html = web_parser.process(url)
-    data = build_llm_data(html)
-    person = cast(dict[str, str], data['person'])
-    skills = ', '.join(cast(list[str], data['skills']))
+    skills = get_skills()
 
     return (
         f"{CONTEXT_INSTRUCTIONS}"
-        f"Candidate: {data['person']}\n"
-        f"Experience: {data['experience']}\n"
+        f"Candidate: {PERSON}\n"
+        f"Experience: {EXPERIENCE}\n"
         f"Skills: {skills}\n"
-        f"Reference tagline: {person.get('tagline', '')}\n"
-        f"Reference letter:\n{data['cover_letter']}\n\n"
-        f"Job description:\n{data['page_text']}\n\n"
+        f"Reference tagline: {PERSON.get('tagline', '')}\n"
+        f"Reference letter:\n{LETTER_CONTENT}\n\n"
+        f"Job description:\n{html_to_text(html)}\n\n"
     )
 
 
-def generate_application(
-    job_text: str,
-    llm: Agent,
-    *,
-    model: str = "",
-    temperature: float = 0.2,
-    max_tokens: int = RESPONSES_MAX_OUTPUT_TOKENS,
-    custom_prompt: str = "",
-    reasoning_effort: str = "low",
-) -> str:
-    """Generate application JSON from URL."""
+def build_schema(include_list: list[str]) -> str:
+    schema_parts = ["'details': " + SCHEMAS['details_schema']]
+    if "letter" in include_list:
+        schema_parts.append("'letter': " + SCHEMAS['letter_schema'])
+
+    if "resume" in include_list:
+        schema_parts.extend([
+            "'work_experience':" + SCHEMAS['work_experience_schema'],
+            "'skills':" + SCHEMAS['skills_schema'],
+            "'languages':" + SCHEMAS['languages_schema']
+        ])
+    return "{" + ",".join(schema_parts) + "}"
+
+
+
+def build_requirements(include: list[str]) -> str:
+    required_keys = ["details"]
+    if "letter" in include:
+        required_keys.append("letter")
+    if "resume" in include:
+        required_keys.extend(["work_experience", "skills", "languages"])
+    required_keys.append("output")
+    return "\n".join(value for key, value in REQUIREMENTS.items() if key in required_keys)
+
+
+def generate_application(include_list: list[str], job_text: str, llm: Agent, model: str = "",
+                         temperature: float = 0.2, max_tokens: int = RESPONSES_MAX_OUTPUT_TOKENS, 
+                         custom_prompt: str = "", reasoning_effort: str = "low") -> str:
     log = thread_logger()
-    requirements = "\n".join(REQUIREMENTS.values())
-    prompt = f"{custom_prompt}\n{job_text}\n{requirements}\nSchema: {FULL_SCHEMA}"
+    include_list = include_list or ["resume"]
 
-    log.info("About to generate application via LLM")
-    client = LLMHandler(
-        llm,
-        model=model,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        reasoning_effort=reasoning_effort
-    )
+    prompt = (f"{custom_prompt}\n{job_text}\n"
+        f"{build_requirements(include_list)}\n"
+        f"Schema: {build_schema(include_list)}")
+
+    log.info("Generating application via LLM (including: %s)", ", ".join(include_list))
+    client = LLMHandler(llm, model, max_tokens, temperature, reasoning_effort)
     return client.process(prompt)
 
 
-def generate_and_save_application(
-    url: str,
-    llm: Agent,
-    out_dir: Path | None = None
-) -> dict[str, Path]:
-    """Generate application from URL and save to disk."""
+def customise_application(url: str, llm: Agent, out_dir: Path,
+                          include_list: list[str] = ["resume"]) -> dict[str, Path]:
+    """Generate application from URL and save to disk.
+
+    Args:
+        url: Job posting URL
+        llm: LLM agent to use
+        out_dir: Output directory (unused, for compatibility)
+        include_list: List of components to include (letter, resume). Defaults to ["resume"]
+    """
     log = thread_logger()
 
-    # text = WebParser().process(url)
+    log.info(f"Generating application JSON for: {include_list}")
+    raw_response = generate_application(include_list, get_context(url), llm)
+    application = LLMResponseParser().process(raw_response)
 
-    log.info("Generating application JSON")
-    raw_response = generate_application(get_context(url), llm)
+    if "letter" in include_list:
+        log.info("Generating letter files")
+        LetterGenerator().process(application)
 
-    response_parser = LLMResponseParser()
-    application = response_parser.process(raw_response)
+    if "resume" in include_list:
+        log.info("Generating resume files")
+        ResumeGenerator().process(application)
 
-    log.info("Generating letter files")
-    letter_generator = LetterGenerator()
-    letter_generator.process(application)
-
-    log.info("Generating resume files")
-    resume_generator = ResumeGenerator()
-    resume_generator.process(application)
-
-    target_dir = Path("target/autogen")
-    target_dir.mkdir(parents=True, exist_ok=True)
+    out_dir = out_dir if isinstance(out_dir, Path) else Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     log.info("Archiving old PDFs")
-    archive_old_pdfs(target_dir)
+    archive_old_pdfs(out_dir)
 
     log.info("Compiling PDFs")
-    compile_pdfs(target_dir)
+    compile_pdfs(out_dir)
 
     log.info("Renaming/moving PDFs to final location")
     company = cast(dict[str, str], application.get("details", {})).get("company", "")
-    letter_pdf_final, resume_pdf_final = rename_pdfs(target_dir, company)
-
+    letter_pdf_final, resume_pdf_final = rename_pdfs(out_dir, company, include_list)
 
     return {
         "letter_tex": Path("letter") / "body.tex",
@@ -152,5 +137,5 @@ def ask_about(question: str, about_url: str, llm: Agent) -> str:
     log.info("Asking assistant a question")
 
     prompt = get_context(about_url) + "\n" + question
-    gpt_client = AgentHandler(llm, model=OPENAI_MODEL, temperature=1, max_tokens=RESPONSES_MAX_OUTPUT_TOKENS)
+    gpt_client = LLMHandler(llm, model=OPENAI_MODEL, temperature=1, max_tokens=RESPONSES_MAX_OUTPUT_TOKENS)
     return gpt_client.process(prompt)

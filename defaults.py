@@ -182,6 +182,7 @@ EDUCATION: list[dict[str, object]] = [
     },
 ]
 
+core_skill_keys = ["languages", "databases", "compute_platforms", "backend", "infrastructure", "automation"]
 # Consolidated lists (skills/areas and packages)
 SKILLS: dict[str, list[str]] = {
     # Core skill groups
@@ -296,6 +297,10 @@ def flatten_experience(experience: list[dict[str, Any]]) -> dict[str, str]:
 
             [flattened.__setitem__(f"{prefix}_bullet_{j}", bullet) for j, bullet in enumerate(value)]
     return flattened
+
+
+def get_skills() -> dict[str, list[str]]:
+    return {key: value for key, value in SKILLS.items() if key in core_skill_keys}
 
 
 def get_details(

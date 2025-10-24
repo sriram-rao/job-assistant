@@ -64,7 +64,7 @@ def make_letter(details: dict[str, str], letter: dict[str, str]) -> str:
     return "\n\n".join(part for part in letter_parts if part.strip())
 
 
-def make_resume(work_experience: list[dict[str, str | list[str]]], details: dict[str, str | list[str]]) -> tuple[str, str]:
+def make_resume(work_experience: list[dict[str, str | list[str]]], details: dict[str, str | list[str] | object]) -> tuple[str, str]:
     work_commands = []
     for i, exp in enumerate(work_experience):
         slug = str(exp.get("slug", f"exp{i}"))
@@ -197,18 +197,19 @@ def compile_pdfs(target_dir: Path) -> None:
     )
 
 
-def rename_pdfs(target_dir: Path, company_name: str) -> tuple[Path, Path]:
+def rename_pdfs(target_dir: Path, company_name: str, include: list[str] | None = None) -> tuple[Path, Path]:
     """Rename generated PDFs with company name and return final paths."""
+    include = include or ["resume"]
     company_slug = company_name.lower().replace(" ", "_")
-    
+
     letter_pdf_generated = target_dir / "simplecover.pdf"
     resume_pdf_generated = target_dir / "main.pdf"
     letter_pdf_final = target_dir / f"{company_slug}_letter.pdf"
     resume_pdf_final = target_dir / f"{company_slug}_resume.pdf"
-    
-    if letter_pdf_generated.exists():
+
+    if "letter" in include and letter_pdf_generated.exists():
         shutil.move(str(letter_pdf_generated), str(letter_pdf_final))
-    if resume_pdf_generated.exists():
+    if "resume" in include and resume_pdf_generated.exists():
         shutil.move(str(resume_pdf_generated), str(resume_pdf_final))
-    
+
     return letter_pdf_final, resume_pdf_final

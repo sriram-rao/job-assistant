@@ -1,5 +1,4 @@
 import argparse
-import json
 import logging
 import os
 import sys
@@ -9,7 +8,7 @@ from typing import cast
 
 from dotenv import load_dotenv
 
-from application_pipeline import ask_about, generate_and_save_application, generate_application
+from application_pipeline import ask_about, customise_application
 from handlers.llm_validator import Validator
 from handlers.web_parser import WebParser
 from ml.gpt import GPT
@@ -71,44 +70,36 @@ def generate_pdfs() -> None:
     discard(compile_to_pdf("simplecover", Path("letter"), "letter"))
 
 
-def demo_llm(url: str) -> None:
-    # Placeholder URL and question; replace with a real job posting for actual use
-    url = (
-        url
-        or "file:///Users/sriramrao/Code/job-assistant/target/openings/Founding%20Engineer%20at%20Noise%20%E2%80%A2%20New%20York%20%E2%80%A2%20Remote%20(Work%20from%20Home)%20_%20Wellfound.html"
-    )
-    question = "Write a cover letter showing my suitability for the role"
-    logging.info("About to call generate_application (LLM call)...")
-    letter = cast(
-        dict[str, str],
-        json.loads(
-        generate_application(WebParser().process(url), GPT(), custom_prompt=question)
-        )["letter"],
-    )
-    logging.info("LLM returned generated letter")
-    print("Generated Cover Letter:\n\n\t", "\n\t".join(letter.values()))
-
-
 def generate_application_from_url(
-    url: str, output_dir: Path | None = None
+    url: str, output_dir: Path = Path("target/autogen"), skip: list[str] | None = None
 ) -> dict[str, Path]:
     """Generate and save tailored application materials (cover letter and resume) for a job posting URL.
 
     Args:
         url: Job posting URL to generate application for
         output_dir: Directory to save application files (defaults to "target")
+        skip: List of components to skip (letter, resume, validation)
 
     Returns:
         Dict mapping "letter" and "resume" to their respective file paths
     """
     setup_logging()
+    skip = skip or []
+
+    # Convert skip list to include list for generator
+    all_docs = {"letter", "resume"}
+    include = list(all_docs - set(skip))
+
     logging.info(f"Generating application for: {url}")
+    logging.info(f"Including: {', '.join(include) if include else 'none'}")
     logging.info(
         "About to call generate_and_save_application (LLM call + file IO)..."
     )
 
-    output_paths = generate_and_save_application(url, GPT(), output_dir)
-    validate_resume(url, output_paths["resume_pdf"])
+    output_paths = customise_application(url, GPT(), output_dir, include)
+
+    if "validation" not in skip and "resume" in include:
+        validate_resume(url, output_paths["resume_pdf"])
 
     return output_paths
 
@@ -127,7 +118,7 @@ def validate_resume(job_url: str, resume_pdf: Path):
     })
     logging.info("ATS Score: %s/100", validation_result["ats_score"])
     logging.info("Feedback: %s", validation_result["feedback"])
-    logging.info("Suggestions: %s", ", ".join(cast(list[str], validation_result["suggestions"])))
+    logging.info("Suggestions: %s", "\n".join(cast(list[str], validation_result["suggestions"])))
 
 
 if __name__ == "__main__":
@@ -151,6 +142,13 @@ if __name__ == "__main__":
     _ = parser.add_argument(
         "-q", "--question", type=str, help="Question to ask the assistant"
     )
+    _ = parser.add_argument(
+        "--skip",
+        nargs="*",
+        choices=["letter", "resume", "validation"],
+        default=["letter"],
+        help="Skip specific components (default: letter). Options: letter, resume, validation"
+    )
 
     args = parser.parse_args()
 
@@ -163,7 +161,7 @@ if __name__ == "__main__":
         logging.info("Assistant completed question response")
     elif args.url:
         logging.info("About to generate application for URL: %s", args.url)
-        _ = generate_application_from_url(args.url, args.output)
+        _ = generate_application_from_url(args.url, args.output or Path("target/autogen").resolve(), args.skip)
         logging.info("Finished application generation")
     else:
         logging.info("No URL provided; showing usage")

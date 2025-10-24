@@ -43,4 +43,4 @@ class Agent(ABC):
         ...
 
     def chat(self, message: str, model: str = "", max_tokens: int = 1024, temperature: float = 1, reasoning: str = "low") -> str:
-        return "\n".join(self.chat_full([{"role": "user", "content": message}], model, max_tokens, temperature, reasoning)[0])
+        return "\n".join(self.chat_full([{"role": "user", "content": message}], model, max_tokens, temperature, reasoning))
