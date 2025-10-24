@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import override
 
 from ml.gpt import GPT
-from ml.llm import Agent
+from ml.agent import Agent
 
 
 from .handler import Handler
@@ -23,7 +23,7 @@ def thread_logger() -> logging.Logger:
     return logging.getLogger(name)
 
 
-class AgentHandler(Handler[str, str]):
+class LLMHandler(Handler[str, str]):
     """Handles GPT communication and caching."""
 
     def __init__(
@@ -60,7 +60,7 @@ class AgentHandler(Handler[str, str]):
         """Send prompt to LLM and return response."""
         self.log.info("Calling LLM.chat_full, model=%s", self.model or OPENAI_MODEL)
         prompt = input_data
-        res = self.llm.chat_full([{"role": "user", "prompt": prompt}], self.model, self.max_tokens, self.temperature, self.reasoning_effort)
+        res = self.llm.chat_full([{"role": "user", "content": prompt}], self.model, self.max_tokens, self.temperature, self.reasoning_effort)
         return res[0]
 
 

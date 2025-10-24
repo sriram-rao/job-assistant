@@ -7,7 +7,7 @@ from typing import cast
 
 from defaults import EXPERIENCE, LETTER_CONTENT, PERSON, SKILLS
 from handlers.document_generator import LetterGenerator, ResumeGenerator
-from handlers.llm_client import AgentHandler
+from handlers.llm_handler import LLMHandler
 from handlers.llm_response_parser import LLMResponseParser
 from handlers.web_parser import WebParser
 from ml.gpt import GPT
@@ -90,7 +90,7 @@ def generate_application(
     prompt = f"{custom_prompt}\n{job_text}\n{requirements}\nSchema: {FULL_SCHEMA}"
 
     log.info("About to generate application via LLM")
-    client = AgentHandler(
+    client = LLMHandler(
         llm,
         model=model,
         temperature=temperature,

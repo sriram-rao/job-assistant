@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import cast, override
 
-from openai import OpenAI as OpenAIClient
+from openai import Omit, OpenAI as OpenAIClient
 from openai.types.shared.reasoning_effort import ReasoningEffort
 from openai.types.shared_params.reasoning import Reasoning
 
@@ -23,9 +23,11 @@ class GPT(Agent):
             model=model or self.model,
             max_output_tokens=max_tokens,
             temperature=temperature,
-            reasoning=Reasoning(effort=cast(ReasoningEffort, reasoning)),
             instructions=self.system_prompt,
-            input=str(messages[0]["content"])
+            input=str(messages[0]["content"]),
+            reasoning=Reasoning(effort=cast(ReasoningEffort, reasoning)) if (model or self.model).startswith("gpt-5") else Omit()
         )
-
-        return [choice.message.content for choice in getattr(response, "choices", [])]
+        # Extract text from response output (Responses API format)
+        response_messages = [m for m in response.output if "message" == m.type]
+        return [c.text for m in response_messages  ## pyright: ignore[reportAttributeAccessIssue]
+            for c in m.content if "output_text" == c.type]  ## pyright: ignore[] ignores m and c unknown type warnings

@@ -9,7 +9,7 @@ def main():
     print("=" * 60)
 
     gpt = GPT()
-    print(f"Model: {gpt.default_model}")
+    print(f"Model: {gpt.model}")
 
     messages = [{"role": "user", "content": "Say hello"}]
     responses = gpt.chat_full(messages, max_tokens=200)
