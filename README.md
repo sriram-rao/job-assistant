@@ -2,6 +2,8 @@
 
 A small helper to tailor resumes and cover letters for specific job posts using templates, sensible defaults, and an LLM.
 
+![Code/Job Assistant architecture](docs/job_assistant_architecture.svg)
+
 ### Features
 - Token replacement in LaTeX/text templates via `util/strings.py` (`%%token%%`).
 - Central defaults in `defaults.py`: `PERSON`, `EXPERIENCE`, `SKILLS`, `LETTER_CONTENT`.
