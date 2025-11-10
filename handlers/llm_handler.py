@@ -59,6 +59,7 @@ class LLMHandler(Handler[str, str]):
         self.log.info("Calling LLM.chat_full, model=%s", self.model or OPENAI_MODEL)
         prompt = input_data
         res = self.llm.chat_full([{"role": "user", "content": prompt}], self.model, self.max_tokens, self.temperature, self.reasoning_effort)
+        self.write_cached_llm_output(res[0])
         return res[0]
 
 

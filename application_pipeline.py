@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import threading
 from pathlib import Path
@@ -15,6 +16,7 @@ from ml.agent import Agent
 from config import OPENAI_MODEL, RESPONSES_MAX_OUTPUT_TOKENS
 from settings import CONTEXT_INSTRUCTIONS, REQUIREMENTS, SCHEMAS
 from util.file import archive_old_pdfs, compile_pdfs, html_to_text, rename_pdfs
+from util.toon_util import json_to_toon
 
 
 def thread_logger() -> logging.Logger:
@@ -32,11 +34,10 @@ def get_context(url: str) -> str:
 
     return (
         f"{CONTEXT_INSTRUCTIONS}"
-        f"Candidate: {PERSON}\n"
-        f"Experience: {EXPERIENCE}\n"
-        f"Skills: {skills}\n"
-        f"Reference tagline: {PERSON.get('tagline', '')}\n"
-        f"Reference letter:\n{LETTER_CONTENT}\n\n"
+        f"Candidate:\n{json_to_toon(PERSON)}\n"
+        f"Experience:\n{json_to_toon(EXPERIENCE)}\n"
+        f"Skills:\n{json_to_toon(skills)}\n"
+        f"Reference letter:\n{json_to_toon(LETTER_CONTENT)}\n\n"
         f"Job description:\n{html_to_text(html)}\n\n"
     )
 
@@ -133,9 +134,9 @@ def ask_about(question: str, about_url: str, llm: Agent) -> str:
 
     prompt = (
         f"Answer the following question concisely based on the candidate information and job description provided.\n\n"
-        f"Candidate: {PERSON}\n"
-        f"Experience: {EXPERIENCE}\n"
-        f"Skills: {get_skills()}\n"
+        f"Candidate:\n{json_to_toon(PERSON)}\n"
+        f"Experience:\n{json_to_toon(EXPERIENCE)}\n"
+        f"Skills:\n{json_to_toon(get_skills())}\n"
         f"Job description:\n{html_to_text(WebParser(GPT()).process(about_url))}\n\n"
         f"Question: {question}\n\n"
         f"Answer:"

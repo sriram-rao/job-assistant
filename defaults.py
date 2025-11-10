@@ -42,7 +42,6 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
             "Collaborated with civil engineers, chemists and physicists to build backend systems for smart practices and IoT architectures to monitor prescribed fires (planned burns).",
             "Created a lightweight pipeline execution system in Python for DAG workflows (sample on GitHub: sriram-rao/rush).",
         ],
-        "category": "academia",
     },
     {
         "company": "Dremio",
@@ -54,7 +53,6 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
             "Built a POC for progressive query response improvement in data lakes; worked with Apache Calcite and Iceberg.",
             "Improved row-count estimation in query planning using statistics observed during execution (From LEO, Markl VLDB 2001).",
         ],
-        "category": "industry",
     },
     {
         "company": "Microsoft",
@@ -69,7 +67,6 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
             "Refactored the cache layer of an Azure-hosted API layer via Aspect-Oriented Programming; reduced config code 5x.",
             "Contributed to 40+ design reviews and 100+ code reviews, on-call support and teammate guidance.",
         ],
-        "category": "industry",
     },
     {
         "company": "Microsoft",
@@ -82,7 +79,6 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
             "Matched data stores to use-cases (log analysis vs aggregate queries).",
             "Enabled migration from OLAP cubes to column-store; ETL time from 10 days to 1 hour.",
         ],
-        "category": "industry",
     },
     {
         "company": "Drexel University",
@@ -93,7 +89,6 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
         "bullets": [
             "Built an iOS app to intuitively record and export a DBT mood journal.",
         ],
-        "category": "industry",
     },
     {
         "company": "University of California, Irvine",
@@ -105,7 +100,6 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
             "Rated 4/5 by students; appreciated for database expertise and straightforward explanations.",
             "Coordinated slides, questions, assignments, and discussions for courses with 200+ students.",
         ],
-        "category": "academia",
     },
 ]
 
