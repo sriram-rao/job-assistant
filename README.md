@@ -2,7 +2,33 @@
 
 A small helper to tailor resumes and cover letters for specific job posts using templates, sensible defaults, and an LLM.
 
-![Code/Job Assistant architecture](docs/job_assistant_architecture.svg)
+<!-- Diagram source: docs/system_overview.mmd -->
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+ subgraph External_Services["Module: External Services (Internet)"]
+        JobSite["Job Listing Platform"]
+        LLMAPI["LLM Service"]
+  end
+ subgraph Local_Processing["Module: Orchestration"]
+        Context["Context Engine"]
+        DocGen["Document Builder"]
+  end
+ subgraph Data_Assets["Module: Local Knowledge"]
+        Profile["Profile Data"]
+        Templates["Template Library"]
+        Storage["Generated PDFs"]
+  end
+ 
+    Context --> LLMAPI
+    LLMAPI --> DocGen
+    Templates --> DocGen
+    Profile --> Context
+    DocGen --> Storage
+    Storage --> JobSite
+    JobSite --> Context
+
+```
 
 ### Features
 - Token replacement in LaTeX/text templates via `util/strings.py` (`%%token%%`).

@@ -7,6 +7,7 @@ import threading
 from pathlib import Path
 from typing import cast, override
 
+from config import VALIDATION_MAX_TOKENS, VALIDATION_TEMPERATURE
 
 from .handler import Handler
 from ml.claude import Claude
@@ -29,8 +30,8 @@ class Validator(Handler[dict[str, str], dict[str, object]]):
         self,
         api_key: str = "",
         model: str = "claude-haiku-4-5",
-        temperature: float = 0.3,
-        max_tokens: int = 2000,
+        temperature: float = VALIDATION_TEMPERATURE,
+        max_tokens: int = VALIDATION_MAX_TOKENS,
     ) -> None:
         self.claude: Claude = Claude(api_key=api_key)
         self.model: str = model
@@ -104,7 +105,24 @@ class Validator(Handler[dict[str, str], dict[str, object]]):
         if json_block:
             response = json_block.group(1)
             self.log.info("Extracted JSON from markdown code block")
-        data: dict[str, object] = json.loads(response.strip())
+
+        # Try to parse as-is first
+        try:
+            data: dict[str, object] = json.loads(response.strip())
+        except json.JSONDecodeError as e:
+            self.log.warning("Initial JSON parse failed: %s. Attempting to fix escape sequences.", e)
+            # Fix common LaTeX escape sequences that aren't valid JSON
+            cleaned_response = response.strip()
+            # Replace invalid escape sequences with escaped versions
+            # This regex finds backslashes not followed by valid JSON escape chars
+            cleaned_response = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', cleaned_response)
+            try:
+                data = json.loads(cleaned_response)
+                self.log.info("Successfully parsed JSON after fixing escape sequences")
+            except json.JSONDecodeError:
+                self.log.error("Failed to parse JSON even after cleanup. Response: %s", response[:500])
+                raise
+
         suggestions_raw = data.get("suggestions", [])
         suggestions = (
             [str(item) for item in suggestions_raw]

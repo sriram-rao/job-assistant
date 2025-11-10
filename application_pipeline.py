@@ -12,13 +12,8 @@ from handlers.llm_response_parser import LLMResponseParser
 from handlers.web_parser import WebParser
 from ml.gpt import GPT
 from ml.agent import Agent
-from settings import (
-    CONTEXT_INSTRUCTIONS,
-    OPENAI_MODEL,
-    REQUIREMENTS,
-    RESPONSES_MAX_OUTPUT_TOKENS,
-)
-from settings import SCHEMAS
+from config import OPENAI_MODEL, RESPONSES_MAX_OUTPUT_TOKENS
+from settings import CONTEXT_INSTRUCTIONS, REQUIREMENTS, SCHEMAS
 from util.file import archive_old_pdfs, compile_pdfs, html_to_text, rename_pdfs
 
 
@@ -47,15 +42,15 @@ def get_context(url: str) -> str:
 
 
 def build_schema(include_list: list[str]) -> str:
-    schema_parts = ["'details': " + SCHEMAS['details_schema']]
+    schema_parts = ['"details": ' + SCHEMAS['details_schema']]
     if "letter" in include_list:
-        schema_parts.append("'letter': " + SCHEMAS['letter_schema'])
+        schema_parts.append('"letter": ' + SCHEMAS['letter_schema'])
 
     if "resume" in include_list:
         schema_parts.extend([
-            "'work_experience':" + SCHEMAS['work_experience_schema'],
-            "'skills':" + SCHEMAS['skills_schema'],
-            "'languages':" + SCHEMAS['languages_schema']
+            '"work_experience":' + SCHEMAS['work_experience_schema'],
+            '"skills":' + SCHEMAS['skills_schema'],
+            '"languages":' + SCHEMAS['languages_schema']
         ])
     return "{" + ",".join(schema_parts) + "}"
 
@@ -136,6 +131,14 @@ def ask_about(question: str, about_url: str, llm: Agent) -> str:
     log = thread_logger()
     log.info("Asking assistant a question")
 
-    prompt = get_context(about_url) + "\n" + question
+    prompt = (
+        f"Answer the following question concisely based on the candidate information and job description provided.\n\n"
+        f"Candidate: {PERSON}\n"
+        f"Experience: {EXPERIENCE}\n"
+        f"Skills: {get_skills()}\n"
+        f"Job description:\n{html_to_text(WebParser(GPT()).process(about_url))}\n\n"
+        f"Question: {question}\n\n"
+        f"Answer:"
+    )
     gpt_client = LLMHandler(llm, model=OPENAI_MODEL, temperature=1, max_tokens=RESPONSES_MAX_OUTPUT_TOKENS)
     return gpt_client.process(prompt)

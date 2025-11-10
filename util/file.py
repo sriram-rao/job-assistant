@@ -9,7 +9,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-from defaults import LETTER_CONTENT
+from defaults import LETTER_CONTENT, PERSON
 from util import strings as string
 
 
@@ -108,7 +108,10 @@ def make_resume(work_experience: list[dict[str, str | list[str]]], details: dict
     escaped_skills = [escape_latex(value) for value in deduped_skills]
     skills_text = ", ".join(escaped_skills)
     languages_text = ", ".join(deduped_languages)
-    tagline_raw = str(details.get("tagline", ""))
+
+    # Extract tagline from nested details dict
+    details_dict = details.get("details", {})
+    tagline_raw = str(details_dict.get("tagline", "") if isinstance(details_dict, dict) else "")
     tagline = string.strip_inline_markdown(tagline_raw)
 
     workexp_content = replace("workexperience_template.tex", {
@@ -198,14 +201,20 @@ def compile_pdfs(target_dir: Path) -> None:
 
 
 def rename_pdfs(target_dir: Path, company_name: str, include: list[str] | None = None) -> tuple[Path, Path]:
-    """Rename generated PDFs with company name and return final paths."""
+    """Rename generated PDFs with candidate name and company name and return final paths."""
     include = include or ["resume"]
+
+    # Get candidate name from PERSON dict
+    first_name = str(PERSON.get("first_name", ""))
+    last_name = str(PERSON.get("last_name", ""))
+    full_name = f"{first_name}_{last_name}".replace(" ", "_")
+
     company_slug = company_name.lower().replace(" ", "_")
 
     letter_pdf_generated = target_dir / "simplecover.pdf"
     resume_pdf_generated = target_dir / "main.pdf"
-    letter_pdf_final = target_dir / f"{company_slug}_letter.pdf"
-    resume_pdf_final = target_dir / f"{company_slug}_resume.pdf"
+    letter_pdf_final = target_dir / f"{full_name}_{company_slug}_letter.pdf"
+    resume_pdf_final = target_dir / f"{full_name}_{company_slug}_resume.pdf"
 
     if "letter" in include and letter_pdf_generated.exists():
         shutil.move(str(letter_pdf_generated), str(letter_pdf_final))

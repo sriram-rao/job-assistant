@@ -10,7 +10,7 @@ from ml.agent import Agent
 
 
 from .handler import Handler
-from settings import OPENAI_MODEL
+from config import OPENAI_MODEL, HANDLER_MAX_TOKENS, HANDLER_TEMPERATURE
 
 
 LLM_LOG_DIR = Path("target/logs")
@@ -28,8 +28,8 @@ class LLMHandler(Handler[str, str]):
         self,
         llm: Agent | None = None,
         model: str = OPENAI_MODEL,
-        max_tokens: int = 1024 * 8,
-        temperature: float = 1.0,
+        max_tokens: int = HANDLER_MAX_TOKENS,
+        temperature: float = HANDLER_TEMPERATURE,
         reasoning_effort: str = "low",
         system_prompt: str = ""
     ) -> None:

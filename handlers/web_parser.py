@@ -6,6 +6,7 @@ from typing import override
 
 from ml.gpt import GPT
 from ml.agent import Agent
+from config import OPENAI_EXTRACTION_MODEL, EXTRACTION_MAX_TOKENS, EXTRACTION_TEMPERATURE
 
 from .handler import Handler
 from net.web import get_html
@@ -28,14 +29,14 @@ class WebParser(Handler[str, str]):
     def log(self) -> logging.Logger:
         return _thread_logger()
 
-    def extract_job_description(self, full_text: str) -> str:
+    def extract_job_description(self, full_text: str, model: str = OPENAI_EXTRACTION_MODEL) -> str:
         """Extract essential job description from full page text using LLM."""
         if not self.llm:
             return full_text
 
         prompt = f"Extract only job description text from:\n\n{full_text}"
-        self.log.info("Extracting job description using gpt-4o-mini")
-        return self.llm.chat(prompt, "gpt-4o-mini", 1024 * 4, 0.3, "low")
+        self.log.info(f"Extracting job description using {model}")
+        return self.llm.chat(prompt, model, EXTRACTION_MAX_TOKENS, EXTRACTION_TEMPERATURE, "low")
 
     @override
     def process(self, input_data: str) -> str:

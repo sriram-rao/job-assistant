@@ -1,9 +1,3 @@
-OPENAI_MODEL = "gpt-5-nano"
-OPENAI_TIMEOUT = 300.0
-RESPONSES_MAX_OUTPUT_TOKENS = 16000
-REASONING_EFFORT = "low"
-
-
 # Prompt configuration for LLM resume generation
 from defaults import LETTER_CONTENT
 
@@ -16,17 +10,19 @@ CONTEXT_INSTRUCTIONS = (
 REQUIREMENTS: dict[str, str] = {
     "details": (
         "- First-person, concise, professional.\n"
-        "- Tailored tagline (max 4 lines, font 9) highlighting role-specific strengths.\n"
+        "- REQUIRED: Generate tailored tagline (max 4 lines, font 9) highlighting role-specific strengths. Use reference tagline as base, customize for job.\n"
         "- Professional, concise style. No pronouns or candidate name. May mention company names.\n"
     ),
     "letter": (
         f"- Must have these 4 keys in order: {','.join(LETTER_CONTENT.keys())}.\n"
-        f"- Match reference letter's tone. Length within 25% of reference. Use exact role name from posting.\n"
+        f"- Match reference letter's tone, tense, grammatical person. Length within 25% of reference. Use exact role name from posting.\n"
     ),
     "work_experience": (
-        "- 2-5 tailored bullets per role. Action verbs, quantified impact.\n"
+        "- 2-5 tailored bullets per role as SEPARATE ARRAY ITEMS. Action verbs, quantified impact.\n"
         "- **Bold** job-relevant keywords (exact matches preferred). Unique bolded terms only.\n"
         "- Match job description phrasing. Ensure semantic accuracy. Maintain similar length to input.\n"
+        "- Retain most bullets, rephrased to fit job application."
+        "- Meaning of contributions in bullet points must not change. Only phrasing can change."
     ),
     "skills": (
         "- 10–15 job-relevant skills from job text, ordered by relevance.\n"
@@ -53,10 +49,10 @@ SCHEMAS: dict[str, str] = {
 # Pre-computed full schema
 FULL_SCHEMA = (
     "{"
-    f"'details': {SCHEMAS['details_schema']},"
-    f"'letter': {SCHEMAS['letter_schema']},"
-    f"'work_experience':{SCHEMAS['work_experience_schema']},"
-    f"'skills':{SCHEMAS['skills_schema']},"
-    f"'languages':{SCHEMAS['languages_schema']}"
+    f'"details": {SCHEMAS["details_schema"]},'
+    f'"letter": {SCHEMAS["letter_schema"]},'
+    f'"work_experience":{SCHEMAS["work_experience_schema"]},'
+    f'"skills":{SCHEMAS["skills_schema"]},'
+    f'"languages":{SCHEMAS["languages_schema"]}'
     "}"
 )

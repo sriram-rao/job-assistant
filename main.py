@@ -71,24 +71,20 @@ def generate_pdfs() -> None:
 
 
 def generate_application_from_url(
-    url: str, output_dir: Path = Path("target/autogen"), skip: list[str] | None = None
+    url: str, output_dir: Path = Path("target/autogen"), include: list[str] | None = None
 ) -> dict[str, Path]:
     """Generate and save tailored application materials (cover letter and resume) for a job posting URL.
 
     Args:
         url: Job posting URL to generate application for
         output_dir: Directory to save application files (defaults to "target")
-        skip: List of components to skip (letter, resume, validation)
+        include: List of components to include (letter, resume, validation)
 
     Returns:
         Dict mapping "letter" and "resume" to their respective file paths
     """
     setup_logging()
-    skip = skip or []
-
-    # Convert skip list to include list for generator
-    all_docs = {"letter", "resume"}
-    include = list(all_docs - set(skip))
+    include = include if include is not None else []
 
     logging.info(f"Generating application for: {url}")
     logging.info(f"Including: {', '.join(include) if include else 'none'}")
@@ -96,9 +92,11 @@ def generate_application_from_url(
         "About to call generate_and_save_application (LLM call + file IO)..."
     )
 
-    output_paths = customise_application(url, GPT(), output_dir, include)
+    # Only include docs that are in the include list
+    docs_to_generate = [doc for doc in ["letter", "resume"] if doc in include]
+    output_paths = customise_application(url, GPT(), output_dir, docs_to_generate) if docs_to_generate else {}
 
-    if "validation" not in skip and "resume" in include:
+    if "validation" in include and "resume" in docs_to_generate and "resume_pdf" in output_paths:
         validate_resume(url, output_paths["resume_pdf"])
 
     return output_paths
@@ -143,16 +141,30 @@ if __name__ == "__main__":
         "-q", "--question", type=str, help="Question to ask the assistant"
     )
     _ = parser.add_argument(
-        "--skip",
-        nargs="*",
-        choices=["letter", "resume", "validation"],
-        default=["letter"],
-        help="Skip specific components (default: letter). Options: letter, resume, validation"
+        "--include",
+        type=str,
+        default="all",
+        help="Comma-separated list of components to include (default: all). Options: letter, resume, validation, all"
     )
 
     args = parser.parse_args()
 
+    # Parse comma-separated include list
+    valid_choices = {"letter", "resume", "validation", "all"}
+    include_list = [item.strip() for item in args.include.split(",") if item.strip()]
+    invalid_items = set(include_list) - valid_choices
+    if invalid_items:
+        parser.error(f"Invalid include options: {', '.join(invalid_items)}. Choose from: letter, resume, validation, all")
+
+    # Expand "all" to all components
+    if "all" in include_list:
+        args.include = ["letter", "resume", "validation"]
+    else:
+        args.include = include_list
+
     if args.ask or args.question is not None:
+        if not args.url:
+            parser.error("URL is required when using -q/--question or -a/--ask")
         prompt = (
             args.question if args.question else "Write a cover letter showing my suitability for the role"
         )
@@ -161,7 +173,7 @@ if __name__ == "__main__":
         logging.info("Assistant completed question response")
     elif args.url:
         logging.info("About to generate application for URL: %s", args.url)
-        _ = generate_application_from_url(args.url, args.output or Path("target/autogen").resolve(), args.skip)
+        _ = generate_application_from_url(args.url, args.output or Path("target/autogen").resolve(), args.include)
         logging.info("Finished application generation")
     else:
         logging.info("No URL provided; showing usage")
