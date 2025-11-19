@@ -18,7 +18,7 @@ from ml.agent import Agent
 from config import OPENAI_MODEL, RESPONSES_MAX_OUTPUT_TOKENS
 from settings import CONTEXT_INSTRUCTIONS, REQUIREMENTS, SCHEMAS
 from util.file import html_to_text
-from util.docx_util import archive_old_docx
+from util.document import archive_old_docx
 
 
 def thread_logger() -> logging.Logger:

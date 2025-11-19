@@ -1,13 +1,13 @@
 from pathlib import Path
 
 # Main application generation
-OPENAI_MODEL = "gpt-5-nano"
+OPENAI_MODEL = "gpt-5-mini"
 OPENAI_TIER = "flex"
 RESPONSES_MAX_OUTPUT_TOKENS = 16000
 REASONING_EFFORT = "low"
 
 # Job description extraction
-OPENAI_EXTRACTION_MODEL = "gpt-5-mini"
+OPENAI_EXTRACTION_MODEL = "gpt-5-nano"
 EXTRACTION_MAX_TOKENS = 4096
 EXTRACTION_TEMPERATURE = 0.3
 

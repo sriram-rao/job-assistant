@@ -21,7 +21,7 @@ def thread_logger() -> logging.Logger:
 
 def add_paragraph(text: str, document: Document, index: int, style: str = "Body A", run_style: str = "") -> Paragraph:
     para = document.paragraphs[index + 1].insert_paragraph_before("", style)
-    new_run = para.add_run(text)
+    new_run = para.add_run(strings.strip_inline_markdown(text))
     new_run.bold = "bold" in run_style
     new_run.italic = "italic" in run_style
     return para
@@ -32,17 +32,22 @@ def set_text(text: str, index: int, document: Document) -> Paragraph:
     return document.paragraphs[index]
 
 def add_bullet_point(text: str, document: Document, index: int, style: str = "List Bullet", run_style: str = "") -> Paragraph:
-    return add_paragraph(text, document, index, style, run_style)  # other option is "Imported Style 1"
+    para = add_paragraph(text, document, index, style, run_style)
+    if para._element.pPr is None:
+        para._element.get_or_add_pPr()
+    para._element.pPr.get_or_add_numPr().get_or_add_numId().val = 1
+    para._element.pPr.numPr.get_or_add_ilvl().val = 0
+    return para
 
 def add_list(data: list[str], document: Document, index: int, style: str = "List Bullet") -> list[Paragraph]:
     paras: list[Paragraph] = []
     for offset, line in enumerate(data):
-        paras.append(add_bullet_point(line, document, index + offset + 1, style, ""))
+        paras.append(add_bullet_point(line, document, index + offset - 1, style, ""))
     return paras
 
 def add_category_list(categories: list[dict[str, str]], document: Document, index: int) -> list[Paragraph]:
     """Add category-based bullet list."""
-    return add_list([f"{category["key"]}: {", ".join(category["value"])}" for category in categories], document, index)
+    return add_list([f"{category['key']}: {', '.join(strings.strip_inline_markdown(v) for v in category['value'])}" for category in categories], document, index)
 
 def delete_paragraph(paragraph: Paragraph):
     """Delete a paragraph from the document."""
@@ -54,7 +59,8 @@ def delete_paragraph(paragraph: Paragraph):
 def set_list(categories: list[dict[str, str]], index: int, document: Document) -> list[Paragraph]:
     """Replace category list, return number of paragraphs added."""
     paras = add_category_list(categories, document, index)
-    delete_paragraph(document.paragraphs[index])
+    # After adding len(paras) paragraphs, the original paragraph at index has shifted to index + len(paras)
+    delete_paragraph(document.paragraphs[index + len(paras)])
     return paras
 
 
@@ -83,16 +89,19 @@ def fill_docx(template_path: Path, data: dict[str, object]) -> Document:
     ]
     for section, handler in replacements:
         paras = handler(data[section], RESUME_ORDER[section] + offset, document)
-        offset += len(paras) if isinstance(paras, list) else 1
+        # set_text modifies in place (0 net change), set_list/add_work add N and delete 1 (N-1 net change)
+        offset += (len(paras) - 1) if isinstance(paras, list) else 0
 
     return document
 
 
 def add_work_entry(doc: Document, index: int, exp: dict[str, str | list[str]]) -> list[Paragraph]:
     """Add single work experience entry with formatting."""
+    company_role_line: str = f"{exp.get('company', '')} — {exp.get('role', '')}"
     time_location_line: str = f"{exp.get('start', '')} - {exp.get('end', '')} • " + str(exp.get('location', ''))
     paras: list[Paragraph] = []
-    paras.append(add_paragraph(time_location_line, doc, index, style="Body A", run_style="bold"))
+    paras.append(add_paragraph(company_role_line, doc, index, style="Body A", run_style="bold"))
+    paras.append(add_paragraph(time_location_line, doc, index + len(paras), style="Body A"))
     for bullet in exp.get("bullets", []):
         paras.append(add_bullet_point(str(bullet), doc, index + len(paras)))
     return paras

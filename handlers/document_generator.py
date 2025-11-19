@@ -10,7 +10,7 @@ from .handler import Handler
 from defaults import EXPERIENCE_MAP, PERSON
 from util.file import make_letter, make_resume, replace
 from util import strings
-from util.docx_util import fill_docx
+from util.document import fill_docx
 
 
 def thread_logger() -> logging.Logger:

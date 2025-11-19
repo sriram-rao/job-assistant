@@ -225,7 +225,7 @@ RESUME_ORDER: dict[str, int] = {
     "tagline": 3,
     "languages": 5,
     "skills": 6,
-    "work_experience": 13
+    "work_experience": 8
 }
 
 

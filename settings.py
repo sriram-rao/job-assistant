@@ -10,7 +10,7 @@ REQUIREMENTS: dict[str, str] = {
     "details": "First-person, concise, professional. REQUIRED: Tailored tagline (max 4 lines, font 9) for role. No pronouns/candidate name. Perfect grammar and punctuation mandatory.",
     "letter": f"First-person full sentences (use I, my, me). 4 keys in order: {','.join(LETTER_CONTENT.keys())}. Match reference tone/tense. Length ±25%. Use exact role name.",
     "work_experience": "2-5 bullets/role. No personal pronouns (I, my, me). Action verbs, quantified. **Bold** job-relevant keywords. Match job phrasing. Retain meaning, rephrase only.\nEach array element must represent a single bullet point.",
-    "skills": "10–15 job-relevant skills, ordered by relevance. Must not be a language.",
+    "skills": "Multiple categories of job-relevant skills. Must not include languages.",
     "languages": "Programming languages (not frameworks), ordered by relevance.",
     "output": "Return ONLY minified JSON. No markdown. Never fabricate.",
 }
