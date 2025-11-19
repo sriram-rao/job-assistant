@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 import threading
 from pathlib import Path
 from typing import cast
 
-from defaults import EXPERIENCE, LETTER_CONTENT, PERSON, get_skills
-from handlers.document_generator import LetterGenerator, ResumeGenerator
+from defaults import EXPERIENCE_MAP, LETTER_CONTENT, PERSON, get_skills
+from handlers.document_generator import LetterGenerator, ResumeGenerator, ResumeDocxGenerator
+from handlers.pdf_generator import DocxPDFGenerator
 from handlers.llm_handler import LLMHandler
 from handlers.llm_response_parser import LLMResponseParser
 from handlers.web_parser import WebParser
@@ -15,8 +17,8 @@ from ml.gpt import GPT
 from ml.agent import Agent
 from config import OPENAI_MODEL, RESPONSES_MAX_OUTPUT_TOKENS
 from settings import CONTEXT_INSTRUCTIONS, REQUIREMENTS, SCHEMAS
-from util.file import archive_old_pdfs, compile_pdfs, html_to_text, rename_pdfs
-from util.toon_util import json_to_toon
+from util.file import html_to_text
+from util.docx_util import archive_old_docx
 
 
 def thread_logger() -> logging.Logger:
@@ -24,22 +26,48 @@ def thread_logger() -> logging.Logger:
     return logging.getLogger(name)
 
 
-def get_context(url: str) -> str:
-    """Build full prompt context from URL."""
-    thread_logger().info("Fetching job text")
+def build_validation_context(validation_results: dict[str, object]) -> str:
+    """Build context string from validation results."""
+    context = (
+        f"Previous ATS Validation Feedback:\n"
+        f"Score: {validation_results.get('ats_score', 'N/A')}/100\n"
+        f"Feedback: {validation_results.get('feedback', '')}\n"
+        f"Suggestions:\n"
+    )
+    for suggestion in validation_results.get('suggestions', []):
+        context += f"- {suggestion}\n"
+    context += (
+        f"\nNote: Not all suggestions may apply, especially if they recommend skills or experience "
+        f"not present in the candidate's background. Focus on improvements that align with the candidate's actual qualifications.\n\n"
+    )
 
-    web_parser = WebParser(GPT())
-    html = web_parser.process(url)
+    if "previous_application" in validation_results:
+        context += f"Previous Resume Output:\n{json.dumps(validation_results['previous_application'], separators=(',', ':'))}\n\n"
+
+    return context
+
+
+def get_context(job_listing: str, validation_results: dict[str, object] | None = None) -> str:
+    """Build full prompt context from job listing text."""
+    log = thread_logger()
+    log.info(f"Building context with job listing ({len(job_listing)} chars): {job_listing[:500]}...")
     skills = get_skills()
 
-    return (
+    context = (
         f"{CONTEXT_INSTRUCTIONS}"
-        f"Candidate:\n{json_to_toon(PERSON)}\n"
-        f"Experience:\n{json_to_toon(EXPERIENCE)}\n"
-        f"Skills:\n{json_to_toon(skills)}\n"
-        f"Reference letter:\n{json_to_toon(LETTER_CONTENT)}\n\n"
-        f"Job description:\n{html_to_text(html)}\n\n"
+        f"Candidate:\n{json.dumps(PERSON, separators=(',', ':'))}\n"
+        f"Experience:\n{json.dumps(EXPERIENCE_MAP, separators=(',', ':'))}\n"
+        f"Skills:\n{json.dumps(skills, separators=(',', ':'))}\n"
+        f"Reference tagline (customize for job): {PERSON.get('tagline', '')}\n"
+        f"Reference letter:\n{json.dumps(LETTER_CONTENT, separators=(',', ':'))}\n\n"
     )
+
+    if validation_results:
+        log.info("Including validation feedback in context")
+        context += build_validation_context(validation_results)
+
+    context += f"Job listing:\n{html_to_text(job_listing)}\n\n"
+    return context
 
 
 def build_schema(include_list: list[str]) -> str:
@@ -82,48 +110,60 @@ def generate_application(include_list: list[str], job_text: str, llm: Agent, mod
     return client.process(prompt)
 
 
-def customise_application(url: str, llm: Agent, out_dir: Path,
-                          include_list: list[str] = ["resume"]) -> dict[str, Path]:
-    """Generate application from URL and save to disk.
+def customise_application(job_listing: str, llm: Agent, out_dir: Path,
+                          include_list: list[str] = ["resume"],
+                          validation_file: Path | None = None) -> dict[str, object]:
+    """Generate application from job listing text and save to disk.
 
     Args:
-        url: Job posting URL
+        job_listing: Job listing text
         llm: LLM agent to use
         out_dir: Output directory (unused, for compatibility)
         include_list: List of components to include (letter, resume). Defaults to ["resume"]
+        validation_file: Optional path to validation JSON file to include feedback in prompt
+
+    Returns:
+        Dict containing output paths and application data
     """
     log = thread_logger()
 
+    validation_results = None
+    if validation_file and validation_file.exists():
+        log.info(f"Loading validation results from {validation_file}")
+        with open(validation_file, "r", encoding="utf-8") as f:
+            validation_results = json.load(f)
+
     log.info(f"Generating application JSON for: {include_list}")
-    raw_response = generate_application(include_list, get_context(url), llm)
+    raw_response = generate_application(include_list, get_context(job_listing, validation_results), llm)
     application = LLMResponseParser().process(raw_response)
 
     if "letter" in include_list:
         log.info("Generating letter files")
         LetterGenerator().process(application)
 
-    if "resume" in include_list:
-        log.info("Generating resume files")
-        ResumeGenerator().process(application)
-
-    out_dir = out_dir if isinstance(out_dir, Path) else Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    log.info("Archiving old PDFs")
-    archive_old_pdfs(out_dir)
+    log.info("Archiving old .docx and PDFs")
+    archive_old_docx(out_dir)
 
-    log.info("Compiling PDFs")
-    compile_pdfs(out_dir)
+    if "resume" in include_list:
+        log.info("Generating resume .docx")
+        application["output_dir"] = out_dir
+        ResumeDocxGenerator().process(application)
 
-    log.info("Renaming/moving PDFs to final location")
-    company = cast(dict[str, str], application.get("details", {})).get("company", "")
-    letter_pdf_final, resume_pdf_final = rename_pdfs(out_dir, company, include_list)
+        company = cast(dict[str, str], application.get("details", {})).get("company", "")
+        company_slug = company.lower().replace(" ", "_")
+        full_name = f"{PERSON['first_name']}_{PERSON['last_name']}".replace(" ", "_")
+
+        docx_path = out_dir / f"{full_name}_{company_slug}_resume.docx"
+
+        log.info("Converting .docx to PDF")
+        pdf_path = DocxPDFGenerator().process(docx_path)
 
     return {
-        "letter_tex": Path("letter") / "body.tex",
-        "letter_pdf": letter_pdf_final,
-        "resume_tex": Path("resume") / "workexperience.tex",
-        "resume_pdf": resume_pdf_final,
+        "resume_docx": docx_path,
+        "resume_pdf": pdf_path,
+        "application_data": application,
     }
 
 
@@ -134,9 +174,9 @@ def ask_about(question: str, about_url: str, llm: Agent) -> str:
 
     prompt = (
         f"Answer the following question concisely based on the candidate information and job description provided.\n\n"
-        f"Candidate:\n{json_to_toon(PERSON)}\n"
-        f"Experience:\n{json_to_toon(EXPERIENCE)}\n"
-        f"Skills:\n{json_to_toon(get_skills())}\n"
+        f"Candidate:\n{json.dumps(PERSON, separators=(',', ':'))}\n"
+        f"Experience:\n{json.dumps(EXPERIENCE_MAP, separators=(',', ':'))}\n"
+        f"Skills:\n{json.dumps(get_skills(), separators=(',', ':'))}\n"
         f"Job description:\n{html_to_text(WebParser(GPT()).process(about_url))}\n\n"
         f"Question: {question}\n\n"
         f"Answer:"

@@ -198,32 +198,34 @@
 %% v1.3: Exploring convenient creation of fields
 %% v1.6: Add starred mode to create \printinfo with full URL
 \NewDocumentCommand{\NewInfoField}{s m m o o}{%
-  \IfBooleanF{#1}{
-    \IfNoValueF{#4}{\csdef{#2 hyperprefix}{#4}}%
-  } 
-  \csdef{#2 symbol}{#3}
+  % #1: starred?  #2: command name  #3: symbol token  #4: hyperlink prefix (optional)  #5: display prefix (optional)
+  % Starred form: \cmd{<text>}{<explicit URL>} — no dynamic csnames
   \IfBooleanTF{#1}
     { \csdef{#2}##1##2{%
         \if@withhyper
-          \IfNoValueTF {##2}
-            {\printinfo{\csuse{#2 symbol}}{##1}}%
-            {\printinfo{\csuse{#2 symbol}}{##1}[##2]}%
+          \IfNoValueTF{##2}
+            {\printinfo{#3}{##1}}%
+            {\printinfo{#3}{##1}[##2]}%
         \else
-          \printinfo{\csuse{#2 symbol}}{##1}%
-        \fi%
+          \printinfo{#3}{##1}%
+        \fi
       }%
     }
-    { \csdef{#2}##1{%
+    { % Unstarred form: \cmd{<text>} with optional hyperlink/display prefixes baked in
+      \csdef{#2}##1{%
         \if@withhyper
           \IfNoValueTF{#4}
-            {\printinfo{\csuse{#2 symbol}}{##1}[\csuse{#2 hyperprefix}##1]}%
-            {\IfNoValueTF{#5}
-                {\printinfo{\csuse{#2 symbol}}{##1}[#4##1]}%
-                {\printinfo{\csuse{#2 symbol}}{#5##1}[#4##1]}%
+            { % No hyperlink prefix provided: print without a link
+              \printinfo{#3}{##1}%
+            }%
+            { % Hyperlink prefix provided
+              \IfNoValueTF{#5}
+                {\printinfo{#3}{##1}[#4##1]}%
+                {\printinfo{#3}{#5##1}[#4##1]}%
             }%
         \else
-          \printinfo{\csuse{#2 symbol}}{##1}%
-        \fi%
+          \printinfo{#3}{##1}%
+        \fi
       }%
     }%
 }%

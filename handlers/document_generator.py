@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import logging
 import threading
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import cast, override
 
 from .handler import Handler
-from defaults import EXPERIENCE_MAP
+from defaults import EXPERIENCE_MAP, PERSON
 from util.file import make_letter, make_resume, replace
 from util import strings
+from util.docx_util import fill_docx
 
 
 def thread_logger() -> logging.Logger:
@@ -17,7 +18,7 @@ def thread_logger() -> logging.Logger:
     return logging.getLogger(name)
 
 
-class DocumentGenerator(Handler[dict[str, object], None]):
+class DocumentGenerator(Handler[dict[str, object], None], ABC):
     """Base class for generating LaTeX documents from application data."""
 
     @property
@@ -26,6 +27,7 @@ class DocumentGenerator(Handler[dict[str, object], None]):
         return thread_logger()
 
     @abstractmethod
+    @override
     def process(self, application: dict[str, object]) -> None:
         """Generate and write document files."""
         ...
@@ -51,6 +53,7 @@ class LetterGenerator(DocumentGenerator):
 class ResumeGenerator(DocumentGenerator):
     """Generates resume LaTeX files from application data."""
 
+    @override
     def process(self, application: dict[str, object]) -> None:
         """Generate and write resume LaTeX files."""
         work_experience_bullets = cast(dict[str, list[str]], application.get("work_experience", {}))
@@ -63,3 +66,45 @@ class ResumeGenerator(DocumentGenerator):
         workexp_content, resume_info_content = make_resume(work_experience, application)
         strings.write_to_file(resume_dir / "workexperience.tex", workexp_content)
         strings.write_to_file(resume_dir / "info.tex", resume_info_content)
+
+
+class ResumeDocxGenerator(DocumentGenerator):
+    """Generates resume .docx files from application data."""
+
+    @override
+    def process(self, application: dict[str, object]) -> None:
+        """Generate and write resume .docx file."""
+        work_experience = cast(dict[str, list[str]], application["work_experience"])
+        work_experience = [
+            {
+                "company": details["company"],
+                "role": details["role"],
+                "start": details["start"],
+                "end": details["end"],
+                "location": details["location"],
+                "bullets": work_experience.get(xp_key, []),
+                "xp_key": xp_key
+            }
+            for xp_key, details in EXPERIENCE_MAP.items()
+        ]
+
+        details: dict[str, object] = cast(dict[str, object], application["details"])
+        details.update({"skills": application["skills"], "languages": application["languages"] })
+        output_dir = cast(Path, application.get("output_dir", Path("target/autogen")))
+
+        _ = generate_resume_docx(work_experience, details, output_dir)
+        self.log.info(f"Generated resume .docx in {output_dir}")
+
+
+def generate_resume_docx(work_experience: list[dict[str, str | list[str]]], details: dict[str, object], output_dir: Path) -> Path:
+    """Generate resume .docx from template and return path."""
+    details.update({"work_experience": work_experience})
+
+    document = fill_docx(Path("resume") / "resume_template.docx", details)
+    company_key = str(details.get("company", "custom")).lower().replace(" ", "_")
+    full_name = f"{PERSON['first_name']}_{PERSON['last_name']}".replace(" ", "_")
+
+    output_path = output_dir / f"{full_name}_{company_key}_resume.docx"
+    document.save(str(output_path))
+    return output_path
+

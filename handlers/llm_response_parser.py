@@ -37,4 +37,13 @@ class LLMResponseParser(Handler[str, dict[str, object]]):
 
         input_data = input_data.strip()
 
-        return json.loads(input_data)
+        try:
+            return json.loads(input_data)
+        except json.JSONDecodeError as e:
+            if "Extra data" not in str(e):
+                raise
+            last_brace = input_data.rfind('}')
+            extra = input_data[last_brace+1:]
+            self.log.warning(f"Truncated extra data after JSON: {extra[:200]}")
+            return json.loads(input_data[:last_brace+1])
+

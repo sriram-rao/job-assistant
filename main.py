@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import sys
@@ -12,6 +13,7 @@ from application_pipeline import ask_about, customise_application
 from handlers.llm_validator import Validator
 from handlers.web_parser import WebParser
 from ml.gpt import GPT
+from net.web import sanitize_filename
 from util.tex import compile_to_pdf
 
 _ = load_dotenv()
@@ -71,7 +73,8 @@ def generate_pdfs() -> None:
 
 
 def generate_application_from_url(
-    url: str, output_dir: Path = Path("target/autogen"), include: list[str] | None = None
+    url: str, output_dir: Path = Path("target/autogen"), include: list[str] | None = None,
+    use_validation: bool = False
 ) -> dict[str, Path]:
     """Generate and save tailored application materials (cover letter and resume) for a job posting URL.
 
@@ -92,31 +95,67 @@ def generate_application_from_url(
         "About to call generate_and_save_application (LLM call + file IO)..."
     )
 
+    # Fetch job listing once
+    job_listing = WebParser(GPT()).process(url)
+
+    # Check for existing validation file if requested
+    validation_file = None
+    if use_validation:
+        vf = Path("target/validate") / f"{sanitize_filename(url)}.json"
+        logging.info(f"Looking for validation file at: {vf}")
+        if vf.exists():
+            validation_file = vf
+            logging.info(f"Found validation file: {validation_file}")
+        else:
+            logging.warning(f"Validation file not found: {vf}")
+
     # Only include docs that are in the include list
     docs_to_generate = [doc for doc in ["letter", "resume"] if doc in include]
-    output_paths = customise_application(url, GPT(), output_dir, docs_to_generate) if docs_to_generate else {}
+    result = customise_application(job_listing, GPT(), output_dir, docs_to_generate, validation_file) if docs_to_generate else {}
 
-    if "validation" in include and "resume" in docs_to_generate and "resume_pdf" in output_paths:
-        validate_resume(url, output_paths["resume_pdf"])
+    if "validation" not in include:
+        return result
 
-    return output_paths
+    resume_pdfs = list(output_dir.glob("*_resume.pdf"))
+    if not resume_pdfs:
+        return result
+
+    latest_resume = max(resume_pdfs, key=lambda p: p.stat().st_mtime)
+    validate_resume(job_listing, latest_resume, url, result.get("application_data"))
+    return result
 
 
-def validate_resume(job_url: str, resume_pdf: Path):
+def validate_resume(job_listing: str, resume_pdf: Path, url: str, application_data: dict[str, object] | None = None):
     """
-    Validate a resume using the provided job URL and resume PDF.
+    Validate a resume using the provided job listing text and resume PDF.
+    Save validation results along with application data for next iteration if provided.
     """
-    text = WebParser().process(job_url)
     logging.info("Running ATS validation")
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     validator = Validator(api_key=api_key)
     validation_result = validator.process({
-        "job_text": text,
+        "job_text": job_listing,
         "resume_pdf_path": str(resume_pdf)
     })
+
+    # Save validation results to file
+    output_dir = Path("target/validate")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    sanitized = sanitize_filename(url)
+    validation_file = output_dir / f"{sanitized}.json"
+
+    # Include application data for next iteration only if provided
+    if application_data: application_data["output_dir"] = str(application_data["output_dir"])
+    save_data = {**validation_result, "previous_application": application_data} if application_data else validation_result
+
+    with open(validation_file, "w", encoding="utf-8") as f:
+        json.dump(save_data, f, indent=2, ensure_ascii=False)
+
     logging.info("ATS Score: %s/100", validation_result["ats_score"])
     logging.info("Feedback: %s", validation_result["feedback"])
     logging.info("Suggestions: %s", "\n".join(cast(list[str], validation_result["suggestions"])))
+    logging.info("Validation results saved to: %s", validation_file)
 
 
 if __name__ == "__main__":
@@ -141,10 +180,17 @@ if __name__ == "__main__":
         "-q", "--question", type=str, help="Question to ask the assistant"
     )
     _ = parser.add_argument(
+        "-i",
         "--include",
         type=str,
         default="all",
         help="Comma-separated list of components to include (default: all). Options: letter, resume, validation, all"
+    )
+    _ = parser.add_argument(
+        "-v",
+        "--use-validation",
+        action="store_true",
+        help="Include validation feedback in resume generation prompt"
     )
 
     args = parser.parse_args()
@@ -173,7 +219,12 @@ if __name__ == "__main__":
         logging.info("Assistant completed question response")
     elif args.url:
         logging.info("About to generate application for URL: %s", args.url)
-        _ = generate_application_from_url(args.url, args.output or Path("target/autogen").resolve(), args.include)
+        _ = generate_application_from_url(
+            args.url,
+            args.output or Path("target/autogen").resolve(),
+            args.include,
+            args.use_validation
+        )
         logging.info("Finished application generation")
     else:
         logging.info("No URL provided; showing usage")

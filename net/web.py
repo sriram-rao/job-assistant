@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import hashlib
 import re
 import sys
 import urllib.parse
@@ -14,6 +15,7 @@ from playwright.sync_api import Page, Frame, Locator
 
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:142.0) Gecko/20100101 Firefox/142.0"
+CACHE_DIR = Path("target/web_cache")
 
 # Platform catalog: indicators + extraction rules
 PLATFORMS: dict[str, dict[str, list[str] | dict[str, str]]] = {
@@ -111,21 +113,49 @@ def save_html_bytes(target: Path, base: str, raw: bytes) -> Path:
     return path
 
 
+def get_cache_path(url: str) -> Path:
+    """Generate cache file path from sanitized URL."""
+    cache_name = sanitize_filename(url)
+    return CACHE_DIR / f"{cache_name}.html"
+
+
+def get_cached_html(url: str) -> str | None:
+    """Get cached HTML if it exists."""
+    cache_file = get_cache_path(url)
+    if not cache_file.exists():
+        return None
+    return cache_file.read_text(encoding="utf-8")
+
+
+def save_to_cache(url: str, html: str) -> None:
+    """Save HTML to cache."""
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_file = get_cache_path(url)
+    cache_file.write_text(html, encoding="utf-8")
+
+
 def get_html(url: str, timeout: float = 20.0) -> str:
     """Fetch a URL or read a file path and return decoded HTML string."""
-    # Check if it's an HTTP/HTTPS URL
+    # Handle HTTP/HTTPS URLs with caching
     if url.startswith(("http://", "https://")):
+        cached = get_cached_html(url)
+        if cached is not None:
+            return cached
+
         raw, encoding = fetch(url, timeout=timeout)
         try:
-            return raw.decode(encoding or "utf-8", errors="replace")
+            html = raw.decode(encoding or "utf-8", errors="replace")
         except Exception:
-            return raw.decode("utf-8", errors="replace")
+            html = raw.decode("utf-8", errors="replace")
 
-    # Handle file:// URLs by removing the prefix and decoding
+        save_to_cache(url, html)
+        return html
+
+    # Handle file:// URLs
     if url.startswith("file://"):
         url = urllib.parse.unquote(url[7:])
 
-    # Treat as a local file path
+    # Handle local file paths
     path = Path(url)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
@@ -133,7 +163,6 @@ def get_html(url: str, timeout: float = 20.0) -> str:
     try:
         return path.read_text(encoding="utf-8", errors="replace")
     except Exception:
-        # Try reading as bytes and decode
         raw = path.read_bytes()
         return raw.decode("utf-8", errors="replace")
 

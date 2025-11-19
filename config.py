@@ -1,3 +1,5 @@
+from pathlib import Path
+
 # Main application generation
 OPENAI_MODEL = "gpt-5-nano"
 OPENAI_TIER = "flex"
@@ -19,3 +21,6 @@ HANDLER_TEMPERATURE = 1.0
 
 # General
 OPENAI_TIMEOUT = 300.0
+
+# Cache directories
+JOB_LISTING_CACHE_DIR = Path("target/job_listing_cache")

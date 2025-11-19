@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, Any
+from typing import Iterable
 
 
 # Consolidated personal information
@@ -29,8 +29,9 @@ PERSON: dict[str, str | dict[str, str]] = {
     )
 }
 
-EXPERIENCE: list[dict[str, str | list[str]]] = [
-    {
+# Map slugs to experience metadata (order matters for resume display)
+EXPERIENCE_MAP: dict[str, dict[str, str | list[str]]] = {
+    "gsr": {
         "company": "University of California, Irvine",
         "role": "Graduate Student Researcher",
         "start": "Sep 2020",
@@ -43,7 +44,7 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
             "Created a lightweight pipeline execution system in Python for DAG workflows (sample on GitHub: sriram-rao/rush).",
         ],
     },
-    {
+    "dremio": {
         "company": "Dremio",
         "role": "Software Engineer - PhD Intern",
         "start": "Jun 2022",
@@ -54,7 +55,7 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
             "Improved row-count estimation in query planning using statistics observed during execution (From LEO, Markl VLDB 2001).",
         ],
     },
-    {
+    "microsoft": {
         "company": "Microsoft",
         "role": "Software Engineer 2",
         "start": "Jun 2016",
@@ -68,7 +69,7 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
             "Contributed to 40+ design reviews and 100+ code reviews, on-call support and teammate guidance.",
         ],
     },
-    {
+    "internmicrosoft": {
         "company": "Microsoft",
         "role": "Summer Intern",
         "start": "May 2015",
@@ -80,17 +81,7 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
             "Enabled migration from OLAP cubes to column-store; ETL time from 10 days to 1 hour.",
         ],
     },
-    {
-        "company": "Drexel University",
-        "role": "Volunteer Intern",
-        "start": "May 2025",
-        "end": "Current",
-        "location": "Remote, CA",
-        "bullets": [
-            "Built an iOS app to intuitively record and export a DBT mood journal.",
-        ],
-    },
-    {
+    "ta": {
         "company": "University of California, Irvine",
         "role": "Teaching Assistant",
         "start": "Sep 2020",
@@ -101,51 +92,15 @@ EXPERIENCE: list[dict[str, str | list[str]]] = [
             "Coordinated slides, questions, assignments, and discussions for courses with 200+ students.",
         ],
     },
-]
-
-# Map slugs to experience metadata (order matters for resume display)
-EXPERIENCE_MAP: dict[str, dict[str, str]] = {
-    "gsr": {
-        "company": "University of California, Irvine",
-        "role": "Graduate Student Researcher",
-        "start": "Sep 2020",
-        "end": "Sep 2024",
-        "location": "Irvine, CA",
-    },
-    "dremio": {
-        "company": "Dremio",
-        "role": "Software Engineer - PhD Intern",
-        "start": "Jun 2022",
-        "end": "Sep 2022",
-        "location": "Remote, CA",
-    },
-    "microsoft": {
-        "company": "Microsoft",
-        "role": "Software Engineer 2",
-        "start": "Jun 2016",
-        "end": "Sep 2020",
-        "location": "Bengaluru, India",
-    },
-    "internmicrosoft": {
-        "company": "Microsoft",
-        "role": "Summer Intern",
-        "start": "May 2015",
-        "end": "Jun 2015",
-        "location": "Bengaluru, India",
-    },
-    "ta": {
-        "company": "University of California, Irvine",
-        "role": "Teaching Assistant",
-        "start": "Sep 2020",
-        "end": "Dec 2024",
-        "location": "Irvine, CA",
-    },
     "drexel": {
         "company": "Drexel University",
         "role": "Volunteer Intern",
         "start": "May 2025",
         "end": "Current",
         "location": "Remote, CA",
+        "bullets": [
+            "Built an iOS app to intuitively record and export a DBT mood journal.",
+        ],
     },
 }
 
@@ -181,12 +136,11 @@ core_skill_keys = ["languages", "databases", "compute_platforms", "backend", "in
 SKILLS: dict[str, list[str]] = {
     # Core skill groups
     "languages": [
-        "Python", "C#", "Java", "C++", "C", "Ruby", "Swift", "Lisp", "Prolog", "SQL",
+        "Python", "C#", "Java", "C++", "C", "Ruby", "Swift", 
+        "Lisp", "Prolog", "SQL","HTML", "CSS", "JavaScript", "TypeScript",
     ],
     "frontend": [
-        "HTML", "CSS", "JavaScript", "TypeScript",
-        "Svelte", "SvelteKit", "TailwindCSS", "daisyui", 
-        "Grafana"
+        "Svelte", "SvelteKit", "TailwindCSS", "daisyui", "Grafana"
     ],
     "automation": ["Bash", "Powershell", "Lua"],
     "databases": [
@@ -267,10 +221,18 @@ Letter: dict[str, str] = {
 }
 
 
-def flatten_person(person: dict[str, str | dict[str, str]]) -> dict[str, str]:
+RESUME_ORDER: dict[str, int] = {
+    "tagline": 3,
+    "languages": 5,
+    "skills": 6,
+    "work_experience": 13
+}
+
+
+def flatten_person() -> dict[str, str]:
     """Flatten PERSON where values are str or dict[str, str] into str->str keys."""
     out: dict[str, str] = {}
-    for k, v in person.items():
+    for k, v in PERSON.items():
         if isinstance(v, str):
             out[k] = v
             continue
@@ -278,13 +240,13 @@ def flatten_person(person: dict[str, str | dict[str, str]]) -> dict[str, str]:
     return out
 
 
-def flatten_experience(experience: list[dict[str, Any]]) -> dict[str, str]:
-    """Flatten EXPERIENCE into str->str using indexed prefixes."""
+def flatten_experience() -> dict[str, str]:
+    """Flatten EXPERIENCE_MAP into str->str using slug prefixes."""
     flattened: dict[str, str] = {}
-    for i, exp in enumerate(experience):
-        prefix = f"exp_{i}"
+    for slug, exp in EXPERIENCE_MAP.items():
+        prefix = f"exp_{slug}"
         for key, value in exp.items():
-            value: str | list[str] 
+            value: str | list[str]
             if key != "bullets":
                 flattened[f"{prefix}_{key}"] = str(value)
                 continue
@@ -308,9 +270,9 @@ def get_details(
     Always returns a new dictionary object.
     """
     details: dict[str, dict[str, str]] = {
-        "common": flatten_person(PERSON),
+        "common": flatten_person(),
         "letter": Letter,
-        "resume": flatten_experience(EXPERIENCE),
+        "resume": flatten_experience(),
     }
     merged: dict[str, str] = {}
     merged = { key: value for name in include for key, value in details[name.lower()].items() }

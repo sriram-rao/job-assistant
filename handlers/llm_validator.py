@@ -93,8 +93,9 @@ class Validator(Handler[dict[str, str], dict[str, object]]):
             "2. Formatting compatibility with ATS systems\n"
             "3. Section organization and clarity\n"
             "4. Quantifiable achievements alignment\n\n"
+            "Score honestly using the full 0-100 range. Don't cluster around 70-80. Consider: 90+ = excellent keyword match + perfect format, 70-89 = good, 40-69 = moderate, <40 = poor.\n\n"
             "Provide your assessment in JSON format with:\n"
-            "- ats_score: integer 0-100 (100 = perfect ATS compatibility)\n"
+            "- ats_score: integer 0-100\n"
             "- feedback: brief paragraph explaining the score\n"
             "- suggestions: array of 3-5 specific improvements\n\n"
             "Output ONLY valid JSON, no other text."
@@ -111,16 +112,23 @@ class Validator(Handler[dict[str, str], dict[str, object]]):
             data: dict[str, object] = json.loads(response.strip())
         except json.JSONDecodeError as e:
             self.log.warning("Initial JSON parse failed: %s. Attempting to fix escape sequences.", e)
-            # Fix common LaTeX escape sequences that aren't valid JSON
             cleaned_response = response.strip()
-            # Replace invalid escape sequences with escaped versions
-            # This regex finds backslashes not followed by valid JSON escape chars
-            cleaned_response = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', cleaned_response)
+
+            # Fix invalid escape sequences:
+            # Valid JSON escapes are: \" \\ \/ \b \f \n \r \t \uXXXX
+            # Replace any backslash not followed by valid escape chars with double backslash
+            cleaned_response = re.sub(
+                r'\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})',
+                r'\\\\',
+                cleaned_response
+            )
+
             try:
                 data = json.loads(cleaned_response)
                 self.log.info("Successfully parsed JSON after fixing escape sequences")
-            except json.JSONDecodeError:
-                self.log.error("Failed to parse JSON even after cleanup. Response: %s", response[:500])
+            except json.JSONDecodeError as e2:
+                self.log.error("Failed to parse JSON even after cleanup. Original error: %s, New error: %s", e, e2)
+                self.log.error("Cleaned response (first 1000 chars): %s", cleaned_response[:1000])
                 raise
 
         suggestions_raw = data.get("suggestions", [])
