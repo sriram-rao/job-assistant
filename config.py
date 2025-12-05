@@ -1,17 +1,18 @@
 from pathlib import Path
 
 # Main application generation
-OPENAI_MODEL = "gpt-5-mini"
+APPLICATION_MODEL = "gpt-5-mini"
 OPENAI_TIER = "flex"
 RESPONSES_MAX_OUTPUT_TOKENS = 16000
 REASONING_EFFORT = "low"
 
 # Job description extraction
-OPENAI_EXTRACTION_MODEL = "gpt-5-nano"
+EXTRACTION_MODEL = "gpt-4o-mini"
 EXTRACTION_MAX_TOKENS = 4096
 EXTRACTION_TEMPERATURE = 0.3
 
 # ATS validation
+VALIDATION_MODEL = "claude-haiku-4-5"
 VALIDATION_MAX_TOKENS = 2000
 VALIDATION_TEMPERATURE = 0.3
 

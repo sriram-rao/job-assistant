@@ -95,8 +95,11 @@ def generate_application_from_url(
         "About to call generate_and_save_application (LLM call + file IO)..."
     )
 
+    # Initialize LLM
+    llm = GPT()
+
     # Fetch job listing once
-    job_listing = WebParser(GPT()).process(url)
+    job_listing = WebParser(llm).process(url)
 
     # Check for existing validation file if requested
     validation_file = None
@@ -111,7 +114,7 @@ def generate_application_from_url(
 
     # Only include docs that are in the include list
     docs_to_generate = [doc for doc in ["letter", "resume"] if doc in include]
-    result = customise_application(job_listing, GPT(), output_dir, docs_to_generate, validation_file) if docs_to_generate else {}
+    result = customise_application(job_listing, llm, output_dir, docs_to_generate, validation_file) if docs_to_generate else {}
 
     if "validation" not in include:
         return result
@@ -152,7 +155,7 @@ def validate_resume(job_listing: str, resume_pdf: Path, url: str, application_da
     with open(validation_file, "w", encoding="utf-8") as f:
         json.dump(save_data, f, indent=2, ensure_ascii=False)
 
-    logging.info("ATS Score: %s/100", validation_result["ats_score"])
+    logging.info("ATS Score: %s/10", validation_result["ats_score"])
     logging.info("Feedback: %s", validation_result["feedback"])
     logging.info("Suggestions: %s", "\n".join(cast(list[str], validation_result["suggestions"])))
     logging.info("Validation results saved to: %s", validation_file)

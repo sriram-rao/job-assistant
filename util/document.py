@@ -45,9 +45,13 @@ def add_list(data: list[str], document: Document, index: int, style: str = "List
         paras.append(add_bullet_point(line, document, index + offset - 1, style, ""))
     return paras
 
-def add_category_list(categories: list[dict[str, str]], document: Document, index: int) -> list[Paragraph]:
+def add_category_list(categories: list[dict[str, list[str]]], document: Document, index: int) -> list[Paragraph]:
     """Add category-based bullet list."""
-    return add_list([f"{category['key']}: {', '.join(strings.strip_inline_markdown(v) for v in category['value'])}" for category in categories], document, index)
+    lines = []
+    for category in categories:
+        for key, values in category.items():
+            lines.append(f"{key}: {', '.join(strings.strip_inline_markdown(v) for v in values)}")
+    return add_list(lines, document, index)
 
 def delete_paragraph(paragraph: Paragraph):
     """Delete a paragraph from the document."""
@@ -56,7 +60,7 @@ def delete_paragraph(paragraph: Paragraph):
         parent.remove(paragraph._element)
 
 
-def set_list(categories: list[dict[str, str]], index: int, document: Document) -> list[Paragraph]:
+def set_list(categories: list[dict[str, list[str]]], index: int, document: Document) -> list[Paragraph]:
     """Replace category list, return number of paragraphs added."""
     paras = add_category_list(categories, document, index)
     # After adding len(paras) paragraphs, the original paragraph at index has shifted to index + len(paras)

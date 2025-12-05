@@ -6,7 +6,7 @@ from typing import override
 
 from ml.gpt import GPT
 from ml.agent import Agent
-from config import OPENAI_EXTRACTION_MODEL, EXTRACTION_MAX_TOKENS, EXTRACTION_TEMPERATURE, JOB_LISTING_CACHE_DIR
+from config import EXTRACTION_MODEL, EXTRACTION_MAX_TOKENS, EXTRACTION_TEMPERATURE, JOB_LISTING_CACHE_DIR
 
 from .handler import Handler
 from net.web import get_html, sanitize_filename
@@ -29,7 +29,7 @@ class WebParser(Handler[str, str]):
     def log(self) -> logging.Logger:
         return _thread_logger()
 
-    def extract_job_listing(self, full_text: str, model: str = OPENAI_EXTRACTION_MODEL) -> str:
+    def extract_job_listing(self, full_text: str, model: str = EXTRACTION_MODEL) -> str:
         """Extract essential job listing from full page text using LLM."""
         if not self.llm:
             return full_text
@@ -63,7 +63,7 @@ class WebParser(Handler[str, str]):
 
         # Check cache first
         if cached := self.get_cached_job_listing(input_data):
-            self.log.info("Using cached job listing")
+            self.log.info("Using cached job listing (no tokens used)")
             return cached
 
         html = get_html(input_data)

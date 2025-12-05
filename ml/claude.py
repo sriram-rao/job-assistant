@@ -1,5 +1,7 @@
+import logging
 import os
 from typing import cast, override
+
 import anthropic
 from anthropic.types.beta import FileMetadata
 from ml.agent import Agent, Message
@@ -12,7 +14,7 @@ class Claude(Agent):
         super().__init__(model, system_prompt, api_key)
         self.api_key = api_key
         self.client = anthropic.Anthropic(
-            api_key=self.api_key,
+            api_key=self.api_key or os.environ.get("ANTHROPIC_API_KEY"),
             default_headers={"anthropic-beta": "files-api-2025-04-14"}
         )
 
@@ -28,19 +30,19 @@ class Claude(Agent):
             temperature=temperature,
             system=self.system_prompt
         )
+        logging.info("\033[33mLLM %s tokens - input: %s, output: %s\033[0m", model, response.usage.input_tokens, response.usage.output_tokens)
         return [block.text for block in response.content if block.type == "text"]
 
-
-    def upload_file(self, local_path: str) -> FileMetadata:
+    @override
+    def upload_file(self, local_path: str) -> Message:
         filename = os.path.basename(local_path)
-        if '.' in filename:
+        ext, content_type = "", "application/octet-stream"
+        if "." in filename:
             ext = filename.rsplit('.', 1)[-1].lower()
             content_type = f"application/{ext}"
-        else:
-            content_type = "application/octet-stream"
         with open(local_path, "rb") as f:
-            return self.client.beta.files.upload(
-                file=(filename, f, content_type),
+            return self.make_file_message(self.client.beta.files.upload(
+                file=(filename, f, content_type))
             )
 
     def make_file_message(self, file_metadata: FileMetadata) -> Message:

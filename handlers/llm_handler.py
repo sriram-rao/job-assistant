@@ -10,7 +10,7 @@ from ml.agent import Agent
 
 
 from .handler import Handler
-from config import OPENAI_MODEL, HANDLER_MAX_TOKENS, HANDLER_TEMPERATURE
+from config import APPLICATION_MODEL, HANDLER_MAX_TOKENS, HANDLER_TEMPERATURE
 
 
 LLM_LOG_DIR = Path("target/logs")
@@ -27,7 +27,7 @@ class LLMHandler(Handler[str, str]):
     def __init__(
         self,
         llm: Agent | None = None,
-        model: str = OPENAI_MODEL,
+        model: str = APPLICATION_MODEL,
         max_tokens: int = HANDLER_MAX_TOKENS,
         temperature: float = HANDLER_TEMPERATURE,
         reasoning_effort: str = "low",
@@ -56,7 +56,7 @@ class LLMHandler(Handler[str, str]):
     @override
     def process(self, input_data: str) -> str:
         """Send prompt to LLM and return response."""
-        self.log.info("Calling LLM.chat_full, model=%s", self.model or OPENAI_MODEL)
+        self.log.info("Calling LLM.chat_full, model=%s", self.model or APPLICATION_MODEL)
         prompt = input_data
         res = self.llm.chat_full([{"role": "user", "content": prompt}], self.model, self.max_tokens, self.temperature, self.reasoning_effort)
         self.write_cached_llm_output(res[0])

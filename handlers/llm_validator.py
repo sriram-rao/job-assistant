@@ -7,7 +7,7 @@ import threading
 from pathlib import Path
 from typing import cast, override
 
-from config import VALIDATION_MAX_TOKENS, VALIDATION_TEMPERATURE
+from config import VALIDATION_MODEL, VALIDATION_MAX_TOKENS, VALIDATION_TEMPERATURE
 
 from .handler import Handler
 from ml.claude import Claude
@@ -29,7 +29,7 @@ class Validator(Handler[dict[str, str], dict[str, object]]):
     def __init__(
         self,
         api_key: str = "",
-        model: str = "claude-haiku-4-5",
+        model: str = VALIDATION_MODEL,
         temperature: float = VALIDATION_TEMPERATURE,
         max_tokens: int = VALIDATION_MAX_TOKENS,
     ) -> None:
@@ -65,7 +65,7 @@ class Validator(Handler[dict[str, str], dict[str, object]]):
                 "role": "user",
                 "content": [
                     {"type": "text", "text": prompt_text},
-                    self.claude.make_file_message(file_metadata)
+                    file_metadata
                 ]
             }],
             model=self.model,
@@ -93,9 +93,9 @@ class Validator(Handler[dict[str, str], dict[str, object]]):
             "2. Formatting compatibility with ATS systems\n"
             "3. Section organization and clarity\n"
             "4. Quantifiable achievements alignment\n\n"
-            "Score honestly using the full 0-100 range. Don't cluster around 70-80. Consider: 90+ = excellent keyword match + perfect format, 70-89 = good, 40-69 = moderate, <40 = poor.\n\n"
+            "Score on 0-10 scale where 0 means very bad and 10 means excellent.\n\n"
             "Provide your assessment in JSON format with:\n"
-            "- ats_score: integer 0-100\n"
+            "- ats_score: integer 0-10\n"
             "- feedback: brief paragraph explaining the score\n"
             "- suggestions: array of 3-5 specific improvements\n\n"
             "Output ONLY valid JSON, no other text."

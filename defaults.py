@@ -81,6 +81,16 @@ EXPERIENCE_MAP: dict[str, dict[str, str | list[str]]] = {
             "Enabled migration from OLAP cubes to column-store; ETL time from 10 days to 1 hour.",
         ],
     },
+    "drexel": {
+        "company": "Drexel University",
+        "role": "Volunteer Intern",
+        "start": "May 2025",
+        "end": "Current",
+        "location": "Remote, CA",
+        "bullets": [
+            "Built an iOS app to intuitively record and export a DBT mood journal.",
+        ],
+    },
     "ta": {
         "company": "University of California, Irvine",
         "role": "Teaching Assistant",
@@ -90,16 +100,6 @@ EXPERIENCE_MAP: dict[str, dict[str, str | list[str]]] = {
         "bullets": [
             "Rated 4/5 by students; appreciated for database expertise and straightforward explanations.",
             "Coordinated slides, questions, assignments, and discussions for courses with 200+ students.",
-        ],
-    },
-    "drexel": {
-        "company": "Drexel University",
-        "role": "Volunteer Intern",
-        "start": "May 2025",
-        "end": "Current",
-        "location": "Remote, CA",
-        "bullets": [
-            "Built an iOS app to intuitively record and export a DBT mood journal.",
         ],
     },
 }

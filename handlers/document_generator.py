@@ -41,6 +41,7 @@ class LetterGenerator(DocumentGenerator):
         """Generate and write letter LaTeX files."""
         details = cast(dict[str, str], application.get("details", {}))
         letter = cast(dict[str, str], application["letter"])
+        details["state"] = details.get("state", "") or details.get("country", "")
 
         letter_dir = Path("letter")
         letter_content = make_letter(details, letter)

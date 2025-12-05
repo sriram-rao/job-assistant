@@ -2,28 +2,45 @@ from __future__ import annotations
 
 import json
 import logging
-import shutil
 import threading
 from pathlib import Path
 from typing import cast
 
 from defaults import EXPERIENCE_MAP, LETTER_CONTENT, PERSON, get_skills
-from handlers.document_generator import LetterGenerator, ResumeGenerator, ResumeDocxGenerator
-from handlers.pdf_generator import DocxPDFGenerator
+from handlers.document_generator import LetterGenerator, ResumeDocxGenerator
 from handlers.llm_handler import LLMHandler
 from handlers.llm_response_parser import LLMResponseParser
+from handlers.pdf_generator import DocxPDFGenerator, LatexPDFGenerator
 from handlers.web_parser import WebParser
 from ml.gpt import GPT
 from ml.agent import Agent
-from config import OPENAI_MODEL, RESPONSES_MAX_OUTPUT_TOKENS
+from config import APPLICATION_MODEL, RESPONSES_MAX_OUTPUT_TOKENS
 from settings import CONTEXT_INSTRUCTIONS, REQUIREMENTS, SCHEMAS
 from util.file import html_to_text
 from util.document import archive_old_docx
+import shutil
 
 
 def thread_logger() -> logging.Logger:
     name: str = f"{__name__}.{threading.current_thread().name}"
     return logging.getLogger(name)
+
+
+def generate_output_filename(application: dict[str, object], out_dir: Path, suffix: str) -> Path:
+    """Generate standardized output filename for application documents.
+
+    Args:
+        application: Application data containing company details
+        out_dir: Output directory
+        suffix: File suffix (e.g., "resume.docx", "cover_letter.pdf")
+
+    Returns:
+        Full path to output file
+    """
+    company = cast(dict[str, str], application.get("details", {})).get("company", "")
+    company_slug = company.lower().replace(" ", "_")
+    full_name = f"{PERSON['first_name']}_{PERSON['last_name']}".replace(" ", "_")
+    return out_dir / f"{full_name}_{company_slug}_{suffix}"
 
 
 def build_validation_context(validation_results: dict[str, object]) -> str:
@@ -37,12 +54,15 @@ def build_validation_context(validation_results: dict[str, object]) -> str:
     for suggestion in validation_results.get('suggestions', []):
         context += f"- {suggestion}\n"
     context += (
-        f"\nNote: Not all suggestions may apply, especially if they recommend skills or experience "
-        f"not present in the candidate's background. Focus on improvements that align with the candidate's actual qualifications.\n\n"
+        "\nNote: Not all suggestions may apply, especially if they recommend skills or experience "
+        "not present in the candidate's background. Focus on improvements that align with the candidate's actual qualifications.\n\n"
     )
 
     if "previous_application" in validation_results:
-        context += f"Previous Resume Output:\n{json.dumps(validation_results['previous_application'], separators=(',', ':'))}\n\n"
+        context += (
+            f"Previous Resume Output (use as reference for resume and improve based on feedback above):\n"
+            f"{json.dumps(validation_results['previous_application'], separators=(',', ':'))}\n\n"
+        )
 
     return context
 
@@ -95,8 +115,8 @@ def build_requirements(include: list[str]) -> str:
     return "\n".join(value for key, value in REQUIREMENTS.items() if key in required_keys)
 
 
-def generate_application(include_list: list[str], job_text: str, llm: Agent, model: str = "",
-                         temperature: float = 0.2, max_tokens: int = RESPONSES_MAX_OUTPUT_TOKENS, 
+def generate_application(include_list: list[str], job_text: str, llm: Agent, model: str = APPLICATION_MODEL,
+                         temperature: float = 0.2, max_tokens: int = RESPONSES_MAX_OUTPUT_TOKENS,
                          custom_prompt: str = "", reasoning_effort: str = "low") -> str:
     log = thread_logger()
     include_list = include_list or ["resume"]
@@ -137,25 +157,35 @@ def customise_application(job_listing: str, llm: Agent, out_dir: Path,
     raw_response = generate_application(include_list, get_context(job_listing, validation_results), llm)
     application = LLMResponseParser().process(raw_response)
 
-    if "letter" in include_list:
-        log.info("Generating letter files")
-        LetterGenerator().process(application)
-
     out_dir.mkdir(parents=True, exist_ok=True)
 
     log.info("Archiving old .docx and PDFs")
     archive_old_docx(out_dir)
+
+    if "letter" in include_list:
+        log.info("Generating letter files")
+        LetterGenerator().process(application)
+
+        log.info("Compiling letter to PDF")
+        letter_tex = Path("letter/simplecover.tex")
+        _ = LatexPDFGenerator().process(letter_tex)
+
+        letter_pdf_source = Path("letter/simplecover.pdf")
+        letter_pdf_path = generate_output_filename(application, out_dir, "cover_letter.pdf")
+
+        log.info(f"Copying letter PDF to {letter_pdf_path}")
+        shutil.copy2(letter_pdf_source, letter_pdf_path)
+
+    docx_path = None
+    pdf_path = None
+    letter_pdf_path = None
 
     if "resume" in include_list:
         log.info("Generating resume .docx")
         application["output_dir"] = out_dir
         ResumeDocxGenerator().process(application)
 
-        company = cast(dict[str, str], application.get("details", {})).get("company", "")
-        company_slug = company.lower().replace(" ", "_")
-        full_name = f"{PERSON['first_name']}_{PERSON['last_name']}".replace(" ", "_")
-
-        docx_path = out_dir / f"{full_name}_{company_slug}_resume.docx"
+        docx_path = generate_output_filename(application, out_dir, "resume.docx")
 
         log.info("Converting .docx to PDF")
         pdf_path = DocxPDFGenerator().process(docx_path)
@@ -163,6 +193,7 @@ def customise_application(job_listing: str, llm: Agent, out_dir: Path,
     return {
         "resume_docx": docx_path,
         "resume_pdf": pdf_path,
+        "letter_pdf": letter_pdf_path,
         "application_data": application,
     }
 
@@ -181,5 +212,5 @@ def ask_about(question: str, about_url: str, llm: Agent) -> str:
         f"Question: {question}\n\n"
         f"Answer:"
     )
-    gpt_client = LLMHandler(llm, model=OPENAI_MODEL, temperature=1, max_tokens=RESPONSES_MAX_OUTPUT_TOKENS)
+    gpt_client = LLMHandler(llm, model=APPLICATION_MODEL, temperature=1, max_tokens=RESPONSES_MAX_OUTPUT_TOKENS)
     return gpt_client.process(prompt)
