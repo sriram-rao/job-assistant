@@ -42,24 +42,26 @@ class LLMResponseParser(Handler[str, dict[str, object]]):
 
         raise json.JSONDecodeError("Failed to parse JSON after all fixes", input_data, 0)
 
-    def try_parse(self, data: str) -> dict[str, object] | None:
+    def try_parse(self, data: str) -> dict[str, object]:
         """Try to parse JSON, return result or None if it fails."""
         try:
             return json.loads(data)
         except json.JSONDecodeError as e:
-            if "Extra data" in str(e) and hasattr(e, 'pos') and e.pos:
+            if not hasattr(e, 'pos') or not e.pos:
+                return dict()
+            if "Extra data" in str(e):
                 self.log.warning(f"Ignoring extra data after position {e.pos}")
+                # return self.try_parse(data[:e.pos])
                 try:
                     return json.loads(data[:e.pos])
                 except json.JSONDecodeError:
                     pass
 
             self.log.error(f"JSON parse error: {str(e)}")
-            if hasattr(e, 'pos') and e.pos:
-                start = max(0, e.pos - 100)
-                end = min(len(data), e.pos + 50)
-                self.log.error(f"Error context: {repr(data[start:end])}")
-        return None
+            start = max(0, e.pos - 100)
+            end = min(len(data), e.pos + 50)
+            self.log.error(f"Error context: {repr(data[start:end])}")
+        return dict()
 
     def apply_all_fixes(self, data: str) -> str:
         """Apply all fixes cumulatively and return fixed data."""

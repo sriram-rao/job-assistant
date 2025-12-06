@@ -21,21 +21,13 @@ from util.document import archive_old_docx
 import shutil
 
 
-def thread_logger() -> logging.Logger:
+def get_thread_logger() -> logging.Logger:
     name: str = f"{__name__}.{threading.current_thread().name}"
     return logging.getLogger(name)
 
 
 def generate_output_filename(application: dict[str, object], out_dir: Path, suffix: str) -> Path:
-    """Generate standardized output filename for application documents.
-
-    Args:
-        application: Application data containing company details
-        out_dir: Output directory
-        suffix: File suffix (e.g., "resume.docx", "cover_letter.pdf")
-
-    Returns:
-        Full path to output file
+    """Return output filename for application documents.
     """
     company = cast(dict[str, str], application.get("details", {})).get("company", "")
     company_slug = company.lower().replace(" ", "_")
@@ -43,7 +35,7 @@ def generate_output_filename(application: dict[str, object], out_dir: Path, suff
     return out_dir / f"{full_name}_{company_slug}_{suffix}"
 
 
-def build_validation_context(validation_results: dict[str, object]) -> str:
+def build_validation_context(validation_results: dict[str, str | list[str]]) -> str:
     """Build context string from validation results."""
     context = (
         f"Previous ATS Validation Feedback:\n"
@@ -51,25 +43,23 @@ def build_validation_context(validation_results: dict[str, object]) -> str:
         f"Feedback: {validation_results.get('feedback', '')}\n"
         f"Suggestions:\n"
     )
-    for suggestion in validation_results.get('suggestions', []):
-        context += f"- {suggestion}\n"
-    context += (
+    suggestions = [ f"- {suggestion}" for suggestion  in validation_results.get("suggestions", []) ]
+    context += "\n".join(suggestions) + (
         "\nNote: Not all suggestions may apply, especially if they recommend skills or experience "
         "not present in the candidate's background. Focus on improvements that align with the candidate's actual qualifications.\n\n"
     )
 
-    if "previous_application" in validation_results:
-        context += (
-            f"Previous Resume Output (use as reference for resume and improve based on feedback above):\n"
-            f"{json.dumps(validation_results['previous_application'], separators=(',', ':'))}\n\n"
-        )
+    if "previous_application" not in validation_results:
+        return context
+    return context + (
+        f"Previous Resume Output (use as reference for resume and improve based on feedback above):\n"
+        f"{json.dumps(validation_results['previous_application'], separators=(',', ':'))}\n\n"
+    )
 
-    return context
 
-
-def get_context(job_listing: str, validation_results: dict[str, object] | None = None) -> str:
+def get_context(job_listing: str, validation_results: dict[str, str | list[str]] | None = None) -> str:
     """Build full prompt context from job listing text."""
-    log = thread_logger()
+    log = get_thread_logger()
     log.info(f"Building context with job listing ({len(job_listing)} chars): {job_listing[:500]}...")
     skills = get_skills()
 
@@ -118,7 +108,7 @@ def build_requirements(include: list[str]) -> str:
 def generate_application(include_list: list[str], job_text: str, llm: Agent, model: str = APPLICATION_MODEL,
                          temperature: float = 0.2, max_tokens: int = RESPONSES_MAX_OUTPUT_TOKENS,
                          custom_prompt: str = "", reasoning_effort: str = "low") -> str:
-    log = thread_logger()
+    log = get_thread_logger()
     include_list = include_list or ["resume"]
 
     prompt = (f"{custom_prompt}\n{job_text}\n"
@@ -145,23 +135,25 @@ def customise_application(job_listing: str, llm: Agent, out_dir: Path,
     Returns:
         Dict containing output paths and application data
     """
-    log = thread_logger()
+    log = get_thread_logger()
 
-    validation_results = None
+    validation_results = dict[str, object]()
     if validation_file and validation_file.exists():
         log.info(f"Loading validation results from {validation_file}")
         with open(validation_file, "r", encoding="utf-8") as f:
             validation_results = json.load(f)
 
     log.info(f"Generating application JSON for: {include_list}")
-    raw_response = generate_application(include_list, get_context(job_listing, validation_results), llm)
-    application = LLMResponseParser().process(raw_response)
+    application = LLMResponseParser().process(
+        generate_application(include_list, get_context(job_listing, validation_results), llm)
+    )
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
     log.info("Archiving old .docx and PDFs")
     archive_old_docx(out_dir)
 
+    letter_pdf_path = ""
     if "letter" in include_list:
         log.info("Generating letter files")
         LetterGenerator().process(application)
@@ -170,15 +162,12 @@ def customise_application(job_listing: str, llm: Agent, out_dir: Path,
         letter_tex = Path("letter/simplecover.tex")
         _ = LatexPDFGenerator().process(letter_tex)
 
-        letter_pdf_source = Path("letter/simplecover.pdf")
-        letter_pdf_path = generate_output_filename(application, out_dir, "cover_letter.pdf")
+        letter_pdf_path = shutil.copy2(Path("letter/simplecover.pdf"),
+                                       generate_output_filename(application, out_dir, "cover_letter.pdf"))
+        log.info(f"Copied letter PDF to {letter_pdf_path}")
 
-        log.info(f"Copying letter PDF to {letter_pdf_path}")
-        shutil.copy2(letter_pdf_source, letter_pdf_path)
-
-    docx_path = None
-    pdf_path = None
-    letter_pdf_path = None
+    docx_path = ""
+    pdf_path = ""
 
     if "resume" in include_list:
         log.info("Generating resume .docx")
@@ -200,7 +189,7 @@ def customise_application(job_listing: str, llm: Agent, out_dir: Path,
 
 def ask_about(question: str, about_url: str, llm: Agent) -> str:
     """Ask a question about a job posting."""
-    log = thread_logger()
+    log = get_thread_logger()
     log.info("Asking assistant a question")
 
     prompt = (

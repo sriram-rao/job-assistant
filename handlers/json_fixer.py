@@ -9,7 +9,7 @@ from typing import Callable, override
 from .handler import Handler
 
 
-def thread_logger() -> logging.Logger:
+def get_logger() -> logging.Logger:
     name: str = f"{__name__}.{threading.current_thread().name}"
     return logging.getLogger(name)
 
@@ -25,7 +25,7 @@ class JsonFixer(Handler[str, dict[str, object]]):
 
     @property
     def log(self) -> logging.Logger:
-        return thread_logger()
+        return get_logger()
 
     @override
     def process(self, input_data: str) -> dict[str, object]:
@@ -82,7 +82,8 @@ class JsonFixer(Handler[str, dict[str, object]]):
             json.loads(data)
         except json.JSONDecodeError as e:
             self.log.error(f"JSON parse error: {str(e)}")
-            if hasattr(e, 'pos') and e.pos:
-                start = max(0, e.pos - 100)
-                end = min(len(data), e.pos + 50)
-                self.log.error(f"Error context: {repr(data[start:end])}")
+            if not (hasattr(e, 'pos') and e.pos):
+                return
+            start = max(0, e.pos - 100)
+            end = min(len(data), e.pos + 50)
+            self.log.error(f"Error context: {repr(data[start:end])}")
