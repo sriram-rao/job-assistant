@@ -118,7 +118,7 @@ def archive_old_docx(target_dir: Path) -> None:
         return
 
     old_dir = target_dir / "old"
-    old_dir.mkdir(exist_ok=True)
+    old_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     for file in old_files:
         old_file = old_dir / f"{timestamp}_{file.name}"

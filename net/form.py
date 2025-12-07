@@ -1,81 +1,44 @@
 from __future__ import annotations
+from typing import cast
 
 from defaults import PERSON
 
 
-def values_from_defaults(all_fields: list[dict[str, object]]) -> dict[str, object]:
-    fields = [{key: str(value) for key, value in values} for values in all_fields]
-    values: dict[str, object] = {}
+contact = cast(dict[str, str], PERSON.get("contact", {}))
 
-    first = PERSON.get("first_name", "")
-    last = PERSON.get("last_name", "")
-    full = PERSON.get("full_name", f"{first} {last}" if first or last else "")
-    contact = (
-        PERSON.get("contact", {}) if isinstance(PERSON.get("contact"), dict) else {}
-    )
-    email = contact.get("email", "") if isinstance(contact, dict) else ""
-    phone = contact.get("phone", "") if isinstance(contact, dict) else ""
-    linkedin = contact.get("linkedin", "") if isinstance(contact, dict) else ""
-    github = contact.get("github", "") if isinstance(contact, dict) else ""
-    website = contact.get("website", "") if isinstance(contact, dict) else ""
-    location = PERSON.get("location", "")
+def get_contact_attribute(site: str, value: str) -> str:
+    return f"https://www.{site}/{value}" if not value.startswith("http") else value
+
+EASY_FILLS: list[tuple[list[str], str | dict[str, str]]] = [
+    (["firstname", "givenname"], PERSON["first_name"]),
+    (["lastname", "familyname", "surname"], PERSON["last_name"]),
+    (["name", "fullname", "yourname"], f"{PERSON['first_name']} {PERSON['last_name']}"),
+    (["email"], contact["email"]),
+    (["phone", "tel", "mobile"], contact["phone"]),
+    (["location",  "city"], PERSON["location"]),
+    (["linkedin"], get_contact_attribute("linkedin.com/in", contact["linkedin"])),
+    (["github"], get_contact_attribute("github.com", contact["github"])),
+    (["website", "portfolio", "url"], get_contact_attribute(contact["website"], "")),
+]
+
+easy_fills_unrolled = [(field, value) for fields, value in EASY_FILLS for field in fields]
+
+def values_from_defaults(all_fields: list[dict[str, object]]) -> dict[str, object]:
+    # Normalize incoming fields (list of dicts) to string values
+    fields = [{k: str(v) for k, v in f.items()} for f in all_fields]
+    values: dict[str, object] = {}
 
     def norm(s: str) -> str:
         return "".join(ch.lower() if ch.isalnum() else "" for ch in s or "")
 
     for f in fields:
-        name = f.get("name") or ""
-        if not name:
+        field_name = f.get("name")
+        if not field_name:
             continue
-        n = norm(name)
-
-        if ("firstname" in n) or ("givenname" in n):
-            if first:
-                values[name] = str(first)
-            continue
-        if ("lastname" in n) or ("familyname" in n) or ("surname" in n):
-            if last:
-                values[name] = str(last)
-            continue
-        if (n == "name") or ("fullname" in n) or ("yourname" in n):
-            if full:
-                values[name] = str(full)
-            continue
-        if "email" in n:
-            if email:
-                values[name] = str(email)
-            continue
-        if ("phone" in n) or ("tel" in n) or ("mobile" in n):
-            if phone:
-                values[name] = str(phone)
-            continue
-        if "linkedin" in n:
-            if linkedin:
-                values[name] = (
-                    f"https://www.linkedin.com/in/{linkedin}"
-                    if not linkedin.startswith("http")
-                    else linkedin
-                )
-            continue
-        if "github" in n:
-            if github:
-                values[name] = (
-                    f"https://github.com/{github}"
-                    if not github.startswith("http")
-                    else github
-                )
-            continue
-        if ("website" in n) or (n.endswith("url")) or ("portfolio" in n):
-            if website:
-                values[name] = (
-                    f"https://{website}"
-                    if website and not website.startswith("http")
-                    else website
-                )
-            continue
-        if ("location" in n) or ("city" in n and "state" not in n):
-            if location:
-                values[name] = location
-            continue
+        normalised_field = norm(field_name)
+        for field, value in easy_fills_unrolled:
+            if field in normalised_field:
+                values[field_name] = value
+                break
 
     return values

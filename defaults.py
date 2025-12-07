@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Iterable
+from pathlib import Path
 
 
 # Consolidated personal information
@@ -238,6 +239,30 @@ def flatten_person() -> dict[str, str]:
             continue
         [out.__setitem__(f"{k}_{sk}", sv) for sk, sv in v.items()]
     return out
+
+
+def cover_text_from_application(app: dict[str, object] | None) -> str:
+    if not app:
+        return ""
+    letter = app.get("letter")
+    if isinstance(letter, dict):
+        return "\n\n".join(str(v) for v in letter.values() if v)
+    return ""
+
+
+def build_profile(application: dict[str, object] | None = None, uploads: dict[str, Path] | None = None) -> dict[str, object]:
+    app = application if isinstance(application, dict) else {}
+    person = PERSON
+    contact = person.get("contact", {}) if isinstance(person.get("contact"), dict) else {}
+    return {
+        "person": person,
+        "contact": contact,
+        "cover_text": cover_text_from_application(app),
+        "skills": app.get("skills", []) if isinstance(app.get("skills"), list) else [],
+        "languages": app.get("languages", []) if isinstance(app.get("languages"), list) else [],
+        "uploads": uploads or {},
+        "application": app,
+    }
 
 
 def flatten_experience() -> dict[str, str]:

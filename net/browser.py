@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pickle import OBJ
 from urllib.parse import urljoin
 
 from pathlib import Path
@@ -12,6 +11,7 @@ from playwright.sync_api import (
     Playwright,
     BrowserType,
     Browser as PlaywrightBrowser,
+    BrowserContext,
     Page,
     Locator,
 )
@@ -29,22 +29,53 @@ APPLY_SELECTOR = (
 
 class Browser:
     playwright: Playwright
-    browser: PlaywrightBrowser
+    browser: PlaywrightBrowser | BrowserContext
     page: Page
 
-    def __init__(self, *, headless: bool = True, engine: str = "chromium") -> None:
+    def __init__(
+        self,
+        *,
+        headless: bool = True,
+        engine: str = "chromium",
+        executable_path: str | None = None,
+        user_data_dir: str | Path | None = None,
+    ) -> None:
         self.playwright = sync_playwright().start()
         launcher: BrowserType = getattr(
             self.playwright, engine, self.playwright.chromium
         )
+        args = ["--no-sandbox", "--disable-dev-shm-usage"]
         try:
-            self.browser = launcher.launch(
-                headless=headless, args=["--no-sandbox", "--disable-dev-shm-usage"]
-            )
+            if user_data_dir:
+                self.browser = launcher.launch_persistent_context(
+                    user_data_dir=str(Path(user_data_dir)),
+                    headless=headless,
+                    executable_path=executable_path,
+                    args=args,
+                )
+                self.page = self.browser.new_page()
+            else:
+                launched = launcher.launch(
+                    headless=headless,
+                    executable_path=executable_path,
+                    args=args,
+                )
+                context = launched.new_context()
+                self.browser = context
+                self.page = context.new_page()
         except Exception:
-            # Fallback to WebKit in restricted environments
-            self.browser = self.playwright.webkit.launch(headless=headless)
-        self.page = self.browser.new_page()
+            # If user provided a specific executable/profile, propagate the error
+            if executable_path or user_data_dir:
+                self.playwright.stop()
+                raise
+            # Fallback to WebKit only for default sandboxed launches
+            launched = self.playwright.webkit.launch(headless=headless)
+            context = launched.new_context()
+            self.browser = context
+            self.page = context.new_page()
+        # Allow long-lived pages for manual review (1 hour)
+        self.page.set_default_timeout(3_600_000)
+        self.page.set_default_navigation_timeout(3_600_000)
 
     def __enter__(self) -> "Browser":
         return self
@@ -150,6 +181,12 @@ class Browser:
             tag = (loc.evaluate("e => e.tagName.toLowerCase()") or "").lower()
             typ = (loc.get_attribute("type") or "").lower()
 
+            try:
+                if not loc.is_visible():
+                    continue
+            except Exception:
+                continue
+
             if typ == "file":
                 paths = (
                     [str(v) for v in val]
@@ -165,9 +202,13 @@ class Browser:
                     _ = suppress_errors(lambda: (loc.check if val else loc.uncheck)())
                 continue
 
-            _ = (val is not None) and (
-                (loc.select_option if tag == "select" else loc.fill)(str(val))
-            )
+            if val is None:
+                continue
+            try:
+                action = loc.select_option if tag == "select" else loc.fill
+                _ = action(str(val))
+            except Exception:
+                continue
 
     def fill_with_defaults(self, *, timeout_ms: int = 60_000) -> dict[str, object]:
         fields = self.extract_inputs(timeout_ms=timeout_ms)

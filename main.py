@@ -9,7 +9,13 @@ from typing import cast
 
 from dotenv import load_dotenv
 
-from application_pipeline import ask_about, customise_application
+from application_pipeline import (
+    ask_about,
+    customise_application,
+    open_browser_for,
+    autofill_form,
+    autofill_with_outputs,
+)
 from handlers.llm_validator import Validator
 from handlers.web_parser import WebParser
 from ml.gpt import GPT
@@ -115,6 +121,7 @@ def generate_application_from_url(
     # Only include docs that are in the include list
     docs_to_generate = [doc for doc in ["letter", "resume"] if doc in include]
     result = customise_application(job_listing, llm, output_dir, docs_to_generate, validation_file) if docs_to_generate else {}
+    result["job_listing"] = job_listing
 
     if "validation" not in include:
         return result
@@ -195,6 +202,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Include validation feedback in resume generation prompt"
     )
+    _ = parser.add_argument(
+        "-f",
+        "--fill",
+        action="store_true",
+        help="Open the job page headful and autofill fields (no submit)"
+    )
 
     args = parser.parse_args()
 
@@ -222,13 +235,31 @@ if __name__ == "__main__":
         logging.info("Assistant completed question response")
     elif args.url:
         logging.info("About to generate application for URL: %s", args.url)
-        _ = generate_application_from_url(
+        result = generate_application_from_url(
             args.url,
             args.output or Path("target/autogen").resolve(),
             args.include,
             args.use_validation
         )
         logging.info("Finished application generation")
+        if args.fill:
+            fill_result, browser = autofill_with_outputs(
+                args.url,
+                llm=GPT(),
+                job_text=result.get("job_listing", ""),
+                application_data=result.get("application_data"),
+                resume_pdf=result.get("resume_pdf"),
+                letter_pdf=result.get("letter_pdf"),
+                headless=False,
+            )
+            logging.info(
+                "Autofill matched %s fields (missing %s), snapshot at %s",
+                len(fill_result.matched),
+                len(fill_result.missing),
+                fill_result.snapshot_path,
+            )
+            print(f"Browser open for review; close it when done. Snapshot: {fill_result.snapshot_path}")
+            browser.page.wait_for_event("close")
     else:
         logging.info("No URL provided; showing usage")
         print("Usage: python main.py <job_url>")
