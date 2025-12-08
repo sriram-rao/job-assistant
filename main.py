@@ -208,6 +208,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Open the job page headful and autofill fields (no submit)"
     )
+    _ = parser.add_argument(
+        "-r",
+        "--retry",
+        action="store_true",
+        help="Shorthand for -i resume -v (regenerate resume with validation feedback)"
+    )
 
     args = parser.parse_args()
 
@@ -223,6 +229,11 @@ if __name__ == "__main__":
         args.include = ["letter", "resume", "validation"]
     else:
         args.include = include_list
+
+    # Handle --retry shorthand (overrides -i)
+    if args.retry:
+        args.include = ["resume"]
+        args.use_validation = True
 
     if args.ask or args.question is not None:
         if not args.url:
